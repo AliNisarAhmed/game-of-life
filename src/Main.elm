@@ -1,25 +1,48 @@
 module Main exposing (..)
 
 import Browser exposing (Document)
+import CellGrid as CG
+import CellGrid.Render as CGR
+import Color
 import Css exposing (..)
+import Dict exposing (Dict)
 import Html
 import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (class)
 import Html.Styled.Events exposing (onClick)
 import Styles exposing (boxStyles)
 import Task
+import Time
+
+
+type BoxStatus
+    = Occupied
+    | UnOccupied
+
+
+type alias Coordinates =
+    ( Int, Int )
 
 
 
+-- type Box
+--     = Box Coordinates BoxStatus
 ---- MODEL ----
 
 
 type alias Model =
-    { clicked : Bool }
+    { size : Int
+    , boxes : Dict Coordinates BoxStatus
+    }
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( { clicked = False }, Cmd.none )
+    ( { size = 4
+      , boxes = Dict.fromList <| List.map2 (\x y -> ( ( x, y ), Occupied )) (List.range 1 4) (List.range 1 4)
+      }
+    , Cmd.none
+    )
 
 
 
@@ -28,7 +51,8 @@ init =
 
 type Msg
     = NoOp
-    | ButtonClicked
+    | CellGridMsg CGR.Msg
+    | Tick Time.Posix
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -37,8 +61,11 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
-        ButtonClicked ->
-            ( { model | clicked = not model.clicked }, Cmd.none )
+        CellGridMsg _ ->
+            ( model, Cmd.none )
+
+        Tick _ ->
+            ( { model | boxes = Dict.map (\k v -> toggleStatus v) model.boxes }, Cmd.none )
 
 
 
@@ -49,16 +76,23 @@ view : Model -> Html.Html Msg
 view model =
     toUnstyled <|
         div []
-            [ box model.clicked ]
+            [ map CellGridMsg <|
+                fromUnstyled <|
+                    CGR.asHtml
+                        { width = 400, height = 400 }
+                        { cellWidth = 100.0, cellHeight = 100.0, toColor = toColor, gridLineWidth = 1, gridLineColor = Color.black }
+                        (CG.initialize { rows = 4, columns = 4 } (getBoxStatus model.boxes))
+            ]
 
 
-box : Bool -> Html Msg
-box clicked =
-    let
-        boxAttr =
-            [ onClick ButtonClicked, boxStyles clicked ]
-    in
-    div boxAttr []
+toColor : BoxStatus -> Color.Color
+toColor box =
+    case box of
+        Occupied ->
+            Color.red
+
+        _ ->
+            Color.green
 
 
 
@@ -71,5 +105,38 @@ main =
         { view = view
         , init = \_ -> init
         , update = update
-        , subscriptions = always Sub.none
+        , subscriptions = subscriptions
         }
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Time.every 1000 Tick
+
+
+
+---- HELPERS ----
+
+
+toggleStatus : BoxStatus -> BoxStatus
+toggleStatus b =
+    case b of
+        Occupied ->
+            UnOccupied
+
+        UnOccupied ->
+            Occupied
+
+
+getBoxStatus : Dict Coordinates BoxStatus -> Int -> Int -> BoxStatus
+getBoxStatus boxes i j =
+    let
+        foundBox =
+            Dict.get ( i, j ) boxes
+    in
+    case foundBox of
+        Just status ->
+            status
+
+        Nothing ->
+            UnOccupied
