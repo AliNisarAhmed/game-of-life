@@ -31,6 +31,28 @@ type Mode
 
 
 
+-- Speed is an Int between 1 and 10 both inclusive
+
+
+type Speed
+    = Speed Int
+
+
+getSpeed : Speed -> Int
+getSpeed (Speed n) =
+    n
+
+
+setSpeed : Int -> Speed -> Speed
+setSpeed incr (Speed prev) =
+    if prev + incr > 10 || prev + incr < 1 then
+        Speed prev
+
+    else
+        Speed (prev + incr)
+
+
+
 ---- MODEL ----
 
 
@@ -38,6 +60,7 @@ type alias Model =
     { size : Int
     , boxes : Dict Coordinates BoxStatus
     , mode : Mode
+    , speed : Speed
     }
 
 
@@ -46,6 +69,7 @@ init initialSize =
     ( { size = initialSize
       , boxes = Dict.empty
       , mode = Init
+      , speed = Speed 1
       }
     , Cmd.none
     )
@@ -70,6 +94,7 @@ type Msg
     | CellGridMsg CGR.Msg
     | Tick Time.Posix
     | ChangeMode Mode
+    | ChangeSpeed Int
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -94,6 +119,9 @@ update msg model =
 
         Tick _ ->
             ( { model | boxes = applyGameOfLifeRules model.boxes }, Cmd.none )
+
+        ChangeSpeed n ->
+            ( { model | speed = setSpeed n model.speed }, Cmd.none )
 
         ChangeMode prevMode ->
             let
@@ -130,6 +158,9 @@ view model =
                         { cellWidth = cellSize, cellHeight = cellSize, toColor = toColor, gridLineWidth = 1, gridLineColor = Color.black }
                         (CG.initialize { rows = model.size, columns = model.size } (getBoxStatus model.boxes))
             , button [ onClick (ChangeMode model.mode) ] [ text <| getModeButtonText model.mode ]
+            , button [ onClick (ChangeSpeed 1) ] [ text <| "Increase Speed" ]
+            , text <| String.fromInt <| getSpeed model.speed
+            , button [ onClick (ChangeSpeed -1) ] [ text <| "Decrease Speed" ]
             ]
 
 
@@ -148,8 +179,8 @@ main =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
-    case model.mode of
+subscriptions { mode, speed } =
+    case mode of
         Init ->
             Sub.none
 
@@ -157,7 +188,7 @@ subscriptions model =
             Sub.none
 
         Play ->
-            Time.every 1000 Tick
+            Time.every (2000 / (Basics.toFloat <| getSpeed speed)) Tick
 
 
 
@@ -168,10 +199,10 @@ toColor : BoxStatus -> Color.Color
 toColor box =
     case box of
         Occupied ->
-            Color.red
+            Color.green
 
         _ ->
-            Color.green
+            Color.red
 
 
 toggleStatus : BoxStatus -> BoxStatus
@@ -229,20 +260,16 @@ updateCell coords dict =
 applyGameOfLifeRules : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
 applyGameOfLifeRules boxes =
     boxes
-        |> Debug.log "boxes"
         |> getNeighbourDict
-        |> Debug.log "after getNeighbour Dict"
         |> Dict.union boxes
-        |> Debug.log "after union with boxes"
         |> getCountOfOccupiedNeighbours boxes
-        |> Debug.log "get count of occupied neighbours"
         |> getNewBoxes
         |> filterOccupiedCells
 
 
 getNewBoxes : Dict Coordinates ( BoxStatus, Int ) -> Dict Coordinates BoxStatus
 getNewBoxes =
-    Dict.map (\k v -> getNewStatus v)
+    Dict.map (\_ v -> getNewStatus v)
 
 
 getCountOfOccupiedNeighbours : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus -> Dict Coordinates ( BoxStatus, Int )
@@ -303,14 +330,8 @@ getNewStatus : ( BoxStatus, Int ) -> BoxStatus
 getNewStatus ( prevStatus, n ) =
     case prevStatus of
         Occupied ->
-            if n < 2 then
-                UnOccupied
-
-            else if n == 2 || n == 3 then
+            if n == 2 || n == 3 then
                 Occupied
-
-            else if n > 3 then
-                UnOccupied
 
             else
                 UnOccupied
