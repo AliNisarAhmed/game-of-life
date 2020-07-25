@@ -19,3 +19,15 @@ boxStyles clicked =
 
     else
         css commonStyles
+
+
+container : Attribute msg
+container =
+    css <|
+        [ width (pct 100)
+        , height (vh 100)
+        , backgroundColor (hex "#333")
+        , displayFlex
+        , justifyContent center
+        , alignItems center
+        ]

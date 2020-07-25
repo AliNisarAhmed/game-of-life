@@ -1,6 +1,6 @@
 module Main exposing (..)
 
-import Browser exposing (Document)
+import Browser
 import CellGrid as CG
 import CellGrid.Render as CGR
 import Color
@@ -8,11 +8,9 @@ import Css exposing (..)
 import Dict exposing (Dict)
 import Html
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (class)
 import Html.Styled.Events exposing (onClick)
 import List.Extra exposing (andThen)
-import Styles exposing (boxStyles)
-import Task
+import Styles exposing (container)
 import Time
 
 
@@ -25,15 +23,20 @@ type alias Coordinates =
     ( Int, Int )
 
 
+type Mode
+    = Init
+    | Play
+    | Pause
 
--- type Box
---     = Box Coordinates BoxStatus
+
+
 ---- MODEL ----
 
 
 type alias Model =
     { size : Int
     , boxes : Dict Coordinates BoxStatus
+    , mode : Mode
     }
 
 
@@ -41,6 +44,7 @@ init : () -> ( Model, Cmd Msg )
 init () =
     ( { size = 4
       , boxes = Dict.fromList <| initBoxes 4
+      , mode = Init
       }
     , Cmd.none
     )
@@ -64,6 +68,7 @@ type Msg
     = NoOp
     | CellGridMsg CGR.Msg
     | Tick Time.Posix
+    | ChangeMode Mode
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -72,11 +77,37 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
-        CellGridMsg _ ->
-            ( model, Cmd.none )
+        CellGridMsg cellMsg ->
+            if model.mode == Init then
+                let
+                    coordinates =
+                        ( cellMsg.cell.row, cellMsg.cell.column )
+
+                    updatedDict =
+                        updateCell coordinates model.boxes
+                in
+                ( { model | boxes = updatedDict }, Cmd.none )
+
+            else
+                ( model, Cmd.none )
 
         Tick _ ->
             ( { model | boxes = Dict.map (\k v -> toggleStatus v) model.boxes }, Cmd.none )
+
+        ChangeMode prevMode ->
+            let
+                newMode =
+                    case prevMode of
+                        Init ->
+                            Play
+
+                        Play ->
+                            Pause
+
+                        Pause ->
+                            Play
+            in
+            ( { model | mode = newMode }, Cmd.none )
 
 
 
@@ -86,24 +117,15 @@ update msg model =
 view : Model -> Html.Html Msg
 view model =
     toUnstyled <|
-        div []
+        div [ container ]
             [ map CellGridMsg <|
                 fromUnstyled <|
                     CGR.asHtml
                         { width = 400, height = 400 }
                         { cellWidth = 100.0, cellHeight = 100.0, toColor = toColor, gridLineWidth = 1, gridLineColor = Color.black }
                         (CG.initialize { rows = 4, columns = 4 } (getBoxStatus model.boxes))
+            , button [ onClick (ChangeMode model.mode) ] [ text <| getModeButtonText model.mode ]
             ]
-
-
-toColor : BoxStatus -> Color.Color
-toColor box =
-    case box of
-        Occupied ->
-            Color.red
-
-        _ ->
-            Color.green
 
 
 
@@ -122,11 +144,29 @@ main =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Time.every 1000 Tick
+    case model.mode of
+        Init ->
+            Sub.none
+
+        Pause ->
+            Sub.none
+
+        Play ->
+            Time.every 1000 Tick
 
 
 
 ---- HELPERS ----
+
+
+toColor : BoxStatus -> Color.Color
+toColor box =
+    case box of
+        Occupied ->
+            Color.red
+
+        _ ->
+            Color.green
 
 
 toggleStatus : BoxStatus -> BoxStatus
@@ -151,3 +191,26 @@ getBoxStatus boxes i j =
 
         Nothing ->
             UnOccupied
+
+
+getModeButtonText : Mode -> String
+getModeButtonText m =
+    case m of
+        Init ->
+            "Start"
+
+        Play ->
+            "Playing"
+
+        Pause ->
+            "Paused"
+
+
+updateCell : Coordinates -> Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
+updateCell coords dict =
+    let
+        updateFunc : Maybe BoxStatus -> Maybe BoxStatus
+        updateFunc =
+            Maybe.map toggleStatus
+    in
+    Dict.update coords updateFunc dict
