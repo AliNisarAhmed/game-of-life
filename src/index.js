@@ -2,8 +2,11 @@ import './main.css';
 import { Elm } from './Main.elm';
 import * as serviceWorker from './serviceWorker';
 
+const initialSize = 16;
+
 Elm.Main.init({
-  node: document.getElementById('root')
+  node: document.getElementById('root'),
+  flags: initialSize
 });
 
 // If you want your app to work offline and load faster, you can change
