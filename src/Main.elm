@@ -10,6 +10,7 @@ import Html
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (class)
 import Html.Styled.Events exposing (onClick)
+import List.Extra exposing (andThen)
 import Styles exposing (boxStyles)
 import Task
 import Time
@@ -36,13 +37,23 @@ type alias Model =
     }
 
 
-init : ( Model, Cmd Msg )
-init =
+init : () -> ( Model, Cmd Msg )
+init () =
     ( { size = 4
-      , boxes = Dict.fromList <| List.map2 (\x y -> ( ( x, y ), Occupied )) (List.range 1 4) (List.range 1 4)
+      , boxes = Dict.fromList <| initBoxes 4
       }
     , Cmd.none
     )
+
+
+initBoxes : Int -> List ( Coordinates, BoxStatus )
+initBoxes n =
+    let
+        values =
+            List.range 0 (n - 1)
+    in
+    values
+        |> andThen (\v1 -> List.map (\v2 -> ( ( v1, v2 ), Occupied )) values)
 
 
 
@@ -103,7 +114,7 @@ main : Program () Model Msg
 main =
     Browser.element
         { view = view
-        , init = \_ -> init
+        , init = init
         , update = update
         , subscriptions = subscriptions
         }
