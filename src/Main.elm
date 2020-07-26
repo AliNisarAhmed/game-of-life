@@ -11,27 +11,21 @@ import Html.Styled exposing (..)
 import Html.Styled.Events exposing (onClick)
 import List.Extra exposing (andThen)
 import Maybe.Extra exposing (isJust)
+import Patterns
+    exposing
+        ( BoxStatus(..)
+        , Coordinates
+        , Pattern(..)
+        , getPattern
+        )
 import Styles exposing (container, controls)
 import Time
-
-
-type BoxStatus
-    = Occupied
-    | UnOccupied
-
-
-type alias Coordinates =
-    ( Int, Int )
 
 
 type Mode
     = Init
     | Play
     | Pause
-
-
-type alias PatternFunction =
-    Int -> Int -> Dict Coordinates BoxStatus
 
 
 
@@ -75,158 +69,12 @@ init initialWidth =
     ( { width = initialWidth
       , height = 70
       , cellSize = 10.0
-      , boxes = oscillator initialWidth 70
+      , boxes = Patterns.default initialWidth 70
       , mode = Init
       , speed = Speed 5
       }
     , Cmd.none
     )
-
-
-oscillator : PatternFunction
-oscillator width height =
-    let
-        midWidth =
-            width // 2
-
-        midHeight =
-            height // 2
-    in
-    Dict.fromList
-        [ ( ( midHeight - 1, midWidth ), Occupied )
-        , ( ( midHeight, midWidth ), Occupied )
-        , ( ( midHeight + 1, midWidth ), Occupied )
-        ]
-
-
-toad : PatternFunction
-toad width height =
-    let
-        midHeight =
-            height // 2
-
-        midWidth =
-            width // 2
-    in
-    Dict.fromList
-        [ ( ( midHeight, midWidth ), Occupied )
-        , ( ( midHeight, midWidth + 1 ), Occupied )
-        , ( ( midHeight, midWidth + 2 ), Occupied )
-        , ( ( midHeight + 1, midWidth - 1 ), Occupied )
-        , ( ( midHeight + 1, midWidth ), Occupied )
-        , ( ( midHeight + 1, midWidth + 1 ), Occupied )
-        ]
-
-
-glider : PatternFunction
-glider width height =
-    let
-        midWidth =
-            width // 2
-
-        midHeight =
-            height // 2
-    in
-    Dict.fromList
-        [ ( ( midHeight - 1, midWidth ), Occupied )
-        , ( ( midHeight, midWidth - 2 ), Occupied )
-        , ( ( midHeight, midWidth ), Occupied )
-        , ( ( midHeight + 1, midWidth - 1 ), Occupied )
-        , ( ( midHeight + 1, midWidth ), Occupied )
-        ]
-
-
-dieHard : PatternFunction
-dieHard width height =
-    let
-        midWidth =
-            width // 2
-
-        midHeight =
-            height // 2
-    in
-    Dict.fromList
-        [ ( ( midHeight, midWidth - 3 ), Occupied )
-        , ( ( midHeight, midWidth - 2 ), Occupied )
-        , ( ( midHeight, midWidth + 3 ), Occupied )
-        , ( ( midHeight + 1, midWidth - 2 ), Occupied )
-        , ( ( midHeight + 1, midWidth + 2 ), Occupied )
-        , ( ( midHeight + 1, midWidth + 3 ), Occupied )
-        , ( ( midHeight + 1, midWidth + 4 ), Occupied )
-        ]
-
-
-rPentomino : PatternFunction
-rPentomino width height =
-    let
-        midWidth =
-            width // 2
-
-        midHeight =
-            height // 2
-    in
-    Dict.fromList
-        [ ( ( midHeight - 1, midWidth ), Occupied )
-        , ( ( midHeight - 1, midWidth + 1 ), Occupied )
-        , ( ( midHeight, midWidth - 1 ), Occupied )
-        , ( ( midHeight, midWidth ), Occupied )
-        , ( ( midHeight + 1, midWidth ), Occupied )
-        ]
-
-
-acorn : PatternFunction
-acorn width height =
-    let
-        midWidth =
-            width // 2
-
-        midHeight =
-            height // 2
-    in
-    Dict.fromList
-        [ ( ( midHeight - 2, midWidth - 2 ), Occupied )
-        , ( ( midHeight - 1, midWidth ), Occupied )
-        , ( ( midHeight, midWidth - 3 ), Occupied )
-        , ( ( midHeight, midWidth - 2 ), Occupied )
-        , ( ( midHeight, midWidth + 1 ), Occupied )
-        , ( ( midHeight, midWidth + 2 ), Occupied )
-        , ( ( midHeight, midWidth + 3 ), Occupied )
-        ]
-
-
-talker : PatternFunction
-talker width height =
-    let
-        midWidth =
-            width // 2
-
-        midHeight =
-            height // 2
-    in
-    Dict.fromList
-        [ ( ( midHeight - 2, midWidth - 2 ), Occupied )
-        , ( ( midHeight - 1, midWidth ), Occupied )
-        , ( ( midHeight, midWidth - 3 ), Occupied )
-        , ( ( midHeight, midWidth - 2 ), Occupied )
-        , ( ( midHeight, midWidth - 1 ), Occupied )
-        , ( ( midHeight, midWidth ), Occupied )
-        , ( ( midHeight, midWidth + 1 ), Occupied )
-        , ( ( midHeight, midWidth + 2 ), Occupied )
-        , ( ( midHeight, midWidth + 3 ), Occupied )
-        ]
-
-
-patternDict : Dict String PatternFunction
-patternDict =
-    Dict.fromList
-        [ ( "Oscillator", oscillator )
-        , ( "Glider", glider )
-        , ( "DieHard", dieHard )
-        , ( "RPentomino", rPentomino )
-        , ( "Acorn", acorn )
-        , ( "Toad", toad )
-        , ( "Talker", talker )
-        ]
 
 
 
@@ -239,8 +87,9 @@ type Msg
     | Tick Time.Posix
     | ChangeMode Mode
     | ChangeSpeed Int
-    | ChangePattern String
+    | ChangePattern Pattern
     | ChangeSize Int
+    | Reset
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -284,15 +133,13 @@ update msg model =
             in
             ( { model | mode = newMode }, Cmd.none )
 
-        ChangePattern str ->
-            ( { model | boxes = (Maybe.withDefault oscillator <| Dict.get str patternDict) model.width model.height }, Cmd.none )
+        ChangePattern ptr ->
+            ( { model | boxes = getPattern ptr model.width model.height }, Cmd.none )
+
+        Reset ->
+            ( { model | boxes = Patterns.default model.width model.height, mode = Init }, Cmd.none )
 
         ChangeSize n ->
-            -- let
-            --     newSize =
-            --         model.size + n
-            -- in
-            -- ( { model | size = newSize, cellSize = Basics.toFloat newSize / 3 }, Cmd.none )
             ( model, Cmd.none )
 
 
@@ -315,13 +162,13 @@ view { height, width, cellSize, mode, boxes, speed } =
                 , button [ onClick (ChangeSpeed 1) ] [ text <| "Increase Speed" ]
                 , text <| String.fromInt <| getSpeed speed
                 , button [ onClick (ChangeSpeed -1) ] [ text <| "Decrease Speed" ]
-                , button [ onClick (ChangePattern "Toad") ] [ text <| "Toad" ]
-                , button [ onClick (ChangePattern "Glider") ] [ text <| "Glider" ]
-                , button [ onClick (ChangePattern "DieHard") ] [ text <| "DieHard" ]
-                , button [ onClick (ChangePattern "RPentomino") ] [ text <| "The R-pentomino" ]
-                , button [ onClick (ChangePattern "Acorn") ] [ text <| "Acorn" ]
-                , button [ onClick (ChangePattern "Talker") ] [ text <| "Talker" ]
-                , button [ onClick (ChangePattern "Oscillator") ] [ text <| "Reset" ]
+                , button [ onClick (ChangePattern Toad) ] [ text <| "Toad" ]
+                , button [ onClick (ChangePattern Glider) ] [ text <| "Glider" ]
+                , button [ onClick (ChangePattern DieHard) ] [ text <| "DieHard" ]
+                , button [ onClick (ChangePattern RPentomino) ] [ text <| "The R-pentomino" ]
+                , button [ onClick (ChangePattern Acorn) ] [ text <| "Acorn" ]
+                , button [ onClick (ChangePattern Talker) ] [ text <| "Talker" ]
+                , button [ onClick Reset ] [ text <| "Reset" ]
                 , button [ onClick (ChangeSize 2) ] [ text <| "Increase Size" ]
                 , button [ onClick (ChangeSize -2) ] [ text <| "Decrease Size" ]
                 ]
