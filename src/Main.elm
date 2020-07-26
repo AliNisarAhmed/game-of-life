@@ -11,7 +11,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Events exposing (onClick)
 import List.Extra exposing (andThen)
 import Maybe.Extra exposing (isJust)
-import Styles exposing (container)
+import Styles exposing (container, controls)
 import Time
 
 
@@ -28,6 +28,10 @@ type Mode
     = Init
     | Play
     | Pause
+
+
+type alias PatternFunction =
+    Int -> Int -> Dict Coordinates BoxStatus
 
 
 
@@ -57,7 +61,9 @@ setSpeed incr (Speed prev) =
 
 
 type alias Model =
-    { size : Int
+    { height : Int
+    , width : Int
+    , cellSize : Float
     , boxes : Dict Coordinates BoxStatus
     , mode : Mode
     , speed : Speed
@@ -65,24 +71,99 @@ type alias Model =
 
 
 init : Int -> ( Model, Cmd Msg )
-init initialSize =
-    ( { size = initialSize
-      , boxes = Dict.empty
+init initialWidth =
+    ( { width = initialWidth
+      , height = 70
+      , cellSize = 10.0
+      , boxes = oscillator initialWidth 70
       , mode = Init
-      , speed = Speed 1
+      , speed = Speed 5
       }
     , Cmd.none
     )
 
 
-initBoxes : Int -> List ( Coordinates, BoxStatus )
-initBoxes n =
+oscillator : PatternFunction
+oscillator width height =
     let
-        values =
-            List.range 0 (n - 1)
+        midWidth =
+            width // 2
+
+        midHeight =
+            height // 2
     in
-    values
-        |> andThen (\v1 -> List.map (\v2 -> ( ( v1, v2 ), UnOccupied )) values)
+    Dict.fromList
+        [ ( ( midHeight - 1, midWidth ), Occupied )
+        , ( ( midHeight, midWidth ), Occupied )
+        , ( ( midHeight + 1, midWidth ), Occupied )
+        ]
+
+
+toad : PatternFunction
+toad width height =
+    let
+        midHeight =
+            height // 2
+
+        midWidth =
+            width // 2
+    in
+    Dict.fromList
+        [ ( ( midHeight, midWidth ), Occupied )
+        , ( ( midHeight, midWidth + 1 ), Occupied )
+        , ( ( midHeight, midWidth + 2 ), Occupied )
+        , ( ( midHeight + 1, midWidth - 1 ), Occupied )
+        , ( ( midHeight + 1, midWidth ), Occupied )
+        , ( ( midHeight + 1, midWidth + 1 ), Occupied )
+        ]
+
+
+glider : PatternFunction
+glider width height =
+    let
+        midWidth =
+            width // 2
+
+        midHeight =
+            height // 2
+    in
+    Dict.fromList
+        [ ( ( midHeight - 1, midWidth ), Occupied )
+        , ( ( midHeight, midWidth - 2 ), Occupied )
+        , ( ( midHeight, midWidth ), Occupied )
+        , ( ( midHeight + 1, midWidth - 1 ), Occupied )
+        , ( ( midHeight + 1, midWidth ), Occupied )
+        ]
+
+
+dieHard : PatternFunction
+dieHard width height =
+    let
+        midWidth =
+            width // 2
+
+        midHeight =
+            height // 2
+    in
+    Dict.fromList
+        [ ( ( midHeight, midWidth - 3 ), Occupied )
+        , ( ( midHeight, midWidth - 2 ), Occupied )
+        , ( ( midHeight, midWidth + 3 ), Occupied )
+        , ( ( midHeight + 1, midWidth - 2 ), Occupied )
+        , ( ( midHeight + 1, midWidth + 2 ), Occupied )
+        , ( ( midHeight + 1, midWidth + 3 ), Occupied )
+        , ( ( midHeight + 1, midWidth + 4 ), Occupied )
+        ]
+
+
+patternDict : Dict String PatternFunction
+patternDict =
+    Dict.fromList
+        [ ( "Oscillator", oscillator )
+        , ( "Glider", glider )
+        , ( "DieHard", dieHard )
+        , ( "Toad", toad )
+        ]
 
 
 
@@ -95,6 +176,8 @@ type Msg
     | Tick Time.Posix
     | ChangeMode Mode
     | ChangeSpeed Int
+    | ChangePattern String
+    | ChangeSize Int
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -138,29 +221,44 @@ update msg model =
             in
             ( { model | mode = newMode }, Cmd.none )
 
+        ChangePattern str ->
+            ( { model | boxes = (Maybe.withDefault oscillator <| Dict.get str patternDict) model.width model.height }, Cmd.none )
+
+        ChangeSize n ->
+            -- let
+            --     newSize =
+            --         model.size + n
+            -- in
+            -- ( { model | size = newSize, cellSize = Basics.toFloat newSize / 3 }, Cmd.none )
+            ( model, Cmd.none )
+
 
 
 ---- VIEW ----
 
 
 view : Model -> Html.Html Msg
-view model =
-    let
-        cellSize =
-            50
-    in
+view { height, width, cellSize, mode, boxes, speed } =
     toUnstyled <|
         div [ container ]
             [ map CellGridMsg <|
                 fromUnstyled <|
                     CGR.asHtml
-                        { width = model.size * cellSize, height = model.size * cellSize }
+                        { width = width * Basics.round cellSize, height = height * Basics.round cellSize }
                         { cellWidth = cellSize, cellHeight = cellSize, toColor = toColor, gridLineWidth = 1, gridLineColor = Color.black }
-                        (CG.initialize { rows = model.size, columns = model.size } (getBoxStatus model.boxes))
-            , button [ onClick (ChangeMode model.mode) ] [ text <| getModeButtonText model.mode ]
-            , button [ onClick (ChangeSpeed 1) ] [ text <| "Increase Speed" ]
-            , text <| String.fromInt <| getSpeed model.speed
-            , button [ onClick (ChangeSpeed -1) ] [ text <| "Decrease Speed" ]
+                        (CG.initialize { rows = height, columns = width } (getBoxStatus boxes))
+            , div [ controls ]
+                [ button [ onClick (ChangeMode mode) ] [ text <| getModeButtonText mode ]
+                , button [ onClick (ChangeSpeed 1) ] [ text <| "Increase Speed" ]
+                , text <| String.fromInt <| getSpeed speed
+                , button [ onClick (ChangeSpeed -1) ] [ text <| "Decrease Speed" ]
+                , button [ onClick (ChangePattern "Toad") ] [ text <| "Toad" ]
+                , button [ onClick (ChangePattern "Glider") ] [ text <| "Glider" ]
+                , button [ onClick (ChangePattern "DieHard") ] [ text <| "DieHard" ]
+                , button [ onClick (ChangePattern "Oscillator") ] [ text <| "Reset" ]
+                , button [ onClick (ChangeSize 2) ] [ text <| "Increase Size" ]
+                , button [ onClick (ChangeSize -2) ] [ text <| "Decrease Size" ]
+                ]
             ]
 
 
@@ -260,8 +358,8 @@ updateCell coords dict =
 applyGameOfLifeRules : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
 applyGameOfLifeRules boxes =
     boxes
+        -- |> Debug.log "boxes"
         |> getNeighbourDict
-        |> Dict.union boxes
         |> getCountOfOccupiedNeighbours boxes
         |> getNewBoxes
         |> filterOccupiedCells
@@ -293,7 +391,7 @@ getCountOfOccupiedNeighbours occupied dict =
 
 getNeighbourDict : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
 getNeighbourDict occupied =
-    Dict.foldr (\k _ acc -> Dict.union acc (getNeighbours k)) Dict.empty occupied
+    Dict.foldr (\k _ acc -> Dict.union acc (getNeighbours k)) occupied occupied
 
 
 filterOccupiedCells : Dict comparable BoxStatus -> Dict comparable BoxStatus

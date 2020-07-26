@@ -2,7 +2,7 @@ import './main.css';
 import { Elm } from './Main.elm';
 import * as serviceWorker from './serviceWorker';
 
-const initialSize = 16;
+const initialSize = 100;
 
 Elm.Main.init({
   node: document.getElementById('root'),

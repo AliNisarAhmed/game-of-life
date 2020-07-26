@@ -31,3 +31,11 @@ container =
         , justifyContent center
         , alignItems center
         ]
+
+
+controls : Attribute msg
+controls =
+    css <|
+        [ displayFlex
+        , flexDirection column
+        ]
