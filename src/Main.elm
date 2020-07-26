@@ -156,13 +156,76 @@ dieHard width height =
         ]
 
 
+rPentomino : PatternFunction
+rPentomino width height =
+    let
+        midWidth =
+            width // 2
+
+        midHeight =
+            height // 2
+    in
+    Dict.fromList
+        [ ( ( midHeight - 1, midWidth ), Occupied )
+        , ( ( midHeight - 1, midWidth + 1 ), Occupied )
+        , ( ( midHeight, midWidth - 1 ), Occupied )
+        , ( ( midHeight, midWidth ), Occupied )
+        , ( ( midHeight + 1, midWidth ), Occupied )
+        ]
+
+
+acorn : PatternFunction
+acorn width height =
+    let
+        midWidth =
+            width // 2
+
+        midHeight =
+            height // 2
+    in
+    Dict.fromList
+        [ ( ( midHeight - 2, midWidth - 2 ), Occupied )
+        , ( ( midHeight - 1, midWidth ), Occupied )
+        , ( ( midHeight, midWidth - 3 ), Occupied )
+        , ( ( midHeight, midWidth - 2 ), Occupied )
+        , ( ( midHeight, midWidth + 1 ), Occupied )
+        , ( ( midHeight, midWidth + 2 ), Occupied )
+        , ( ( midHeight, midWidth + 3 ), Occupied )
+        ]
+
+
+talker : PatternFunction
+talker width height =
+    let
+        midWidth =
+            width // 2
+
+        midHeight =
+            height // 2
+    in
+    Dict.fromList
+        [ ( ( midHeight - 2, midWidth - 2 ), Occupied )
+        , ( ( midHeight - 1, midWidth ), Occupied )
+        , ( ( midHeight, midWidth - 3 ), Occupied )
+        , ( ( midHeight, midWidth - 2 ), Occupied )
+        , ( ( midHeight, midWidth - 1 ), Occupied )
+        , ( ( midHeight, midWidth ), Occupied )
+        , ( ( midHeight, midWidth + 1 ), Occupied )
+        , ( ( midHeight, midWidth + 2 ), Occupied )
+        , ( ( midHeight, midWidth + 3 ), Occupied )
+        ]
+
+
 patternDict : Dict String PatternFunction
 patternDict =
     Dict.fromList
         [ ( "Oscillator", oscillator )
         , ( "Glider", glider )
         , ( "DieHard", dieHard )
+        , ( "RPentomino", rPentomino )
+        , ( "Acorn", acorn )
         , ( "Toad", toad )
+        , ( "Talker", talker )
         ]
 
 
@@ -255,6 +318,9 @@ view { height, width, cellSize, mode, boxes, speed } =
                 , button [ onClick (ChangePattern "Toad") ] [ text <| "Toad" ]
                 , button [ onClick (ChangePattern "Glider") ] [ text <| "Glider" ]
                 , button [ onClick (ChangePattern "DieHard") ] [ text <| "DieHard" ]
+                , button [ onClick (ChangePattern "RPentomino") ] [ text <| "The R-pentomino" ]
+                , button [ onClick (ChangePattern "Acorn") ] [ text <| "Acorn" ]
+                , button [ onClick (ChangePattern "Talker") ] [ text <| "Talker" ]
                 , button [ onClick (ChangePattern "Oscillator") ] [ text <| "Reset" ]
                 , button [ onClick (ChangeSize 2) ] [ text <| "Increase Size" ]
                 , button [ onClick (ChangeSize -2) ] [ text <| "Decrease Size" ]
@@ -358,16 +424,28 @@ updateCell coords dict =
 applyGameOfLifeRules : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
 applyGameOfLifeRules boxes =
     boxes
-        -- |> Debug.log "boxes"
+        |> Debug.log "boxes"
         |> getNeighbourDict
         |> getCountOfOccupiedNeighbours boxes
         |> getNewBoxes
-        |> filterOccupiedCells
 
 
 getNewBoxes : Dict Coordinates ( BoxStatus, Int ) -> Dict Coordinates BoxStatus
 getNewBoxes =
-    Dict.map (\_ v -> getNewStatus v)
+    Dict.foldr
+        (\k v acc ->
+            let
+                newStatus =
+                    getNewStatus v
+            in
+            case newStatus of
+                Occupied ->
+                    Dict.insert k newStatus acc
+
+                _ ->
+                    acc
+        )
+        Dict.empty
 
 
 getCountOfOccupiedNeighbours : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus -> Dict Coordinates ( BoxStatus, Int )
@@ -392,11 +470,6 @@ getCountOfOccupiedNeighbours occupied dict =
 getNeighbourDict : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
 getNeighbourDict occupied =
     Dict.foldr (\k _ acc -> Dict.union acc (getNeighbours k)) occupied occupied
-
-
-filterOccupiedCells : Dict comparable BoxStatus -> Dict comparable BoxStatus
-filterOccupiedCells =
-    Dict.filter (\_ v -> v == Occupied)
 
 
 getNeighbourCoords : Coordinates -> List Coordinates
