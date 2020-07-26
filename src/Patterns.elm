@@ -128,13 +128,13 @@ acorn width height =
             height // 2
     in
     Dict.fromList
-        [ ( ( midHeight - 2, midWidth - 2 ), Occupied )
-        , ( ( midHeight - 1, midWidth ), Occupied )
-        , ( ( midHeight, midWidth - 3 ), Occupied )
-        , ( ( midHeight, midWidth - 2 ), Occupied )
-        , ( ( midHeight, midWidth + 1 ), Occupied )
-        , ( ( midHeight, midWidth + 2 ), Occupied )
-        , ( ( midHeight, midWidth + 3 ), Occupied )
+        [ ( ( midHeight - 2, midWidth + 18 ), Occupied )
+        , ( ( midHeight - 1, midWidth + 20 ), Occupied )
+        , ( ( midHeight, midWidth + 17 ), Occupied )
+        , ( ( midHeight, midWidth + 18 ), Occupied )
+        , ( ( midHeight, midWidth + 21 ), Occupied )
+        , ( ( midHeight, midWidth + 22 ), Occupied )
+        , ( ( midHeight, midWidth + 23 ), Occupied )
         ]
 
 
@@ -160,6 +160,48 @@ talker width height =
         ]
 
 
+gosperGliderGun : PatternFunction
+gosperGliderGun width height =
+    Dict.fromList
+        [ ( ( 1, 25 ), Occupied )
+        , ( ( 2, 23 ), Occupied )
+        , ( ( 2, 25 ), Occupied )
+        , ( ( 3, 13 ), Occupied )
+        , ( ( 3, 14 ), Occupied )
+        , ( ( 3, 21 ), Occupied )
+        , ( ( 3, 22 ), Occupied )
+        , ( ( 3, 35 ), Occupied )
+        , ( ( 3, 36 ), Occupied )
+        , ( ( 4, 12 ), Occupied )
+        , ( ( 4, 16 ), Occupied )
+        , ( ( 4, 21 ), Occupied )
+        , ( ( 4, 22 ), Occupied )
+        , ( ( 4, 35 ), Occupied )
+        , ( ( 4, 36 ), Occupied )
+        , ( ( 5, 1 ), Occupied )
+        , ( ( 5, 2 ), Occupied )
+        , ( ( 5, 11 ), Occupied )
+        , ( ( 5, 17 ), Occupied )
+        , ( ( 5, 21 ), Occupied )
+        , ( ( 5, 22 ), Occupied )
+        , ( ( 6, 1 ), Occupied )
+        , ( ( 6, 2 ), Occupied )
+        , ( ( 6, 11 ), Occupied )
+        , ( ( 6, 15 ), Occupied )
+        , ( ( 6, 17 ), Occupied )
+        , ( ( 6, 18 ), Occupied )
+        , ( ( 6, 23 ), Occupied )
+        , ( ( 6, 25 ), Occupied )
+        , ( ( 7, 11 ), Occupied )
+        , ( ( 7, 17 ), Occupied )
+        , ( ( 7, 25 ), Occupied )
+        , ( ( 8, 12 ), Occupied )
+        , ( ( 8, 16 ), Occupied )
+        , ( ( 9, 13 ), Occupied )
+        , ( ( 9, 14 ), Occupied )
+        ]
+
+
 patternDict : Dict String PatternFunction
 patternDict =
     Dict.fromList
@@ -170,6 +212,7 @@ patternDict =
         , ( patternToString Acorn, acorn )
         , ( patternToString Toad, toad )
         , ( patternToString Talker, talker )
+        , ( patternToString GosperGliderGun, gosperGliderGun )
         ]
 
 
@@ -181,6 +224,7 @@ type Pattern
     | Talker
     | RPentomino
     | Toad
+    | GosperGliderGun
 
 
 patternToString : Pattern -> String
@@ -203,6 +247,9 @@ patternToString ptr =
 
         Talker ->
             "Talker"
+
+        GosperGliderGun ->
+            "GosperGliderGun"
 
         _ ->
             "Toad"

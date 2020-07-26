@@ -2,12 +2,14 @@ module Main exposing (..)
 
 import Browser
 import CellGrid as CG
+import CellGrid.Image as CGI
 import CellGrid.Render as CGR
 import Color
-import Css exposing (..)
+import Css as Css exposing (..)
 import Dict exposing (Dict)
 import Html
 import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (css, src)
 import Html.Styled.Events exposing (onClick)
 import List.Extra exposing (andThen)
 import Maybe.Extra exposing (isJust)
@@ -26,6 +28,18 @@ type Mode
     = Init
     | Play
     | Pause
+
+
+type Rule
+    = Rule Born Survive
+
+
+type alias Born =
+    List Int
+
+
+type alias Survive =
+    List Int
 
 
 
@@ -71,7 +85,7 @@ init initialWidth =
       , cellSize = 10.0
       , boxes = Patterns.default initialWidth 70
       , mode = Init
-      , speed = Speed 5
+      , speed = Speed 20
       }
     , Cmd.none
     )
@@ -88,7 +102,8 @@ type Msg
     | ChangeMode Mode
     | ChangeSpeed Int
     | ChangePattern Pattern
-    | ChangeSize Int
+    | ChangeWidth Int
+    | ChangeHeight Int
     | Reset
 
 
@@ -139,8 +154,11 @@ update msg model =
         Reset ->
             ( { model | boxes = Patterns.default model.width model.height, mode = Init }, Cmd.none )
 
-        ChangeSize n ->
-            ( model, Cmd.none )
+        ChangeWidth n ->
+            ( { model | width = model.width + n }, Cmd.none )
+
+        ChangeHeight n ->
+            ( { model | height = model.height + n }, Cmd.none )
 
 
 
@@ -151,12 +169,7 @@ view : Model -> Html.Html Msg
 view { height, width, cellSize, mode, boxes, speed } =
     toUnstyled <|
         div [ container ]
-            [ map CellGridMsg <|
-                fromUnstyled <|
-                    CGR.asHtml
-                        { width = width * Basics.round cellSize, height = height * Basics.round cellSize }
-                        { cellWidth = cellSize, cellHeight = cellSize, toColor = toColor, gridLineWidth = 1, gridLineColor = Color.black }
-                        (CG.initialize { rows = height, columns = width } (getBoxStatus boxes))
+            [ drawGrid height width cellSize boxes mode
             , div [ controls ]
                 [ button [ onClick (ChangeMode mode) ] [ text <| getModeButtonText mode ]
                 , button [ onClick (ChangeSpeed 1) ] [ text <| "Increase Speed" ]
@@ -168,11 +181,41 @@ view { height, width, cellSize, mode, boxes, speed } =
                 , button [ onClick (ChangePattern RPentomino) ] [ text <| "The R-pentomino" ]
                 , button [ onClick (ChangePattern Acorn) ] [ text <| "Acorn" ]
                 , button [ onClick (ChangePattern Talker) ] [ text <| "Talker" ]
+                , button [ onClick (ChangePattern GosperGliderGun) ] [ text <| "Gosper Glider Gun" ]
                 , button [ onClick Reset ] [ text <| "Reset" ]
-                , button [ onClick (ChangeSize 2) ] [ text <| "Increase Size" ]
-                , button [ onClick (ChangeSize -2) ] [ text <| "Decrease Size" ]
+                , button [ onClick (ChangeWidth 2) ] [ text <| "Increase Width" ]
+                , button [ onClick (ChangeWidth -2) ] [ text <| "Decrease Width" ]
+                , button [ onClick (ChangeHeight 2) ] [ text <| "Increase Height" ]
+                , button [ onClick (ChangeHeight -2) ] [ text <| "Decrease Height" ]
                 ]
             ]
+
+
+drawGrid : Int -> Int -> Float -> Dict Coordinates BoxStatus -> Mode -> Html Msg
+drawGrid height width cellSize boxes mode =
+    let
+        dimensions =
+            { width = width * Basics.round cellSize
+            , height = height * Basics.round cellSize
+            }
+
+        cellStyle =
+            { cellWidth = cellSize
+            , cellHeight = cellSize
+            , toColor = toColor
+            , gridLineWidth = 1
+            , gridLineColor = Color.black
+            }
+
+        cellGrid =
+            CG.initialize { rows = height, columns = width } (getBoxStatus boxes)
+    in
+    map CellGridMsg <|
+        fromUnstyled <|
+            CGR.asHtml
+                dimensions
+                cellStyle
+                cellGrid
 
 
 
@@ -226,6 +269,20 @@ toggleStatus b =
             Occupied
 
 
+getBoxColor : Dict Coordinates BoxStatus -> Int -> Int -> Color.Color
+getBoxColor boxes i j =
+    let
+        foundBox =
+            Dict.get ( i, j ) boxes
+    in
+    case foundBox of
+        Just status ->
+            toColor status
+
+        Nothing ->
+            toColor UnOccupied
+
+
 getBoxStatus : Dict Coordinates BoxStatus -> Int -> Int -> BoxStatus
 getBoxStatus boxes i j =
     let
@@ -271,7 +328,7 @@ updateCell coords dict =
 applyGameOfLifeRules : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
 applyGameOfLifeRules boxes =
     boxes
-        |> Debug.log "boxes"
+        -- |> Debug.log "boxes"
         |> getNeighbourDict
         |> getCountOfOccupiedNeighbours boxes
         |> getNewBoxes
@@ -298,20 +355,31 @@ getNewBoxes =
 getCountOfOccupiedNeighbours : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus -> Dict Coordinates ( BoxStatus, Int )
 getCountOfOccupiedNeighbours occupied dict =
     let
-        countOccupiedNeighbours k =
-            getNeighbourCoords k
-                |> List.foldr
-                    (\x acc ->
-                        if isJust (Dict.get x occupied) then
-                            acc + 1
+        countOccupiedNeighbours input =
+            Dict.foldr
+                (\k v acc ->
+                    if isNeighbour input k then
+                        acc + 1
 
-                        else
-                            acc
-                    )
-                    0
+                    else
+                        acc
+                )
+                0
+                occupied
     in
-    dict
-        |> Dict.map (\k v -> ( v, countOccupiedNeighbours k ))
+    Dict.map (\k v -> ( v, countOccupiedNeighbours k )) dict
+
+
+isNeighbour : Coordinates -> Coordinates -> Bool
+isNeighbour ( i, j ) ( m, n ) =
+    (i - 1 == m && j - 1 == n)
+        || (i - 1 == m && j == n)
+        || (i - 1 == m && j + 1 == n)
+        || (i == m && j - 1 == n)
+        || (i == m && j + 1 == n)
+        || (i + 1 == m && j - 1 == n)
+        || (i + 1 == m && j == n)
+        || (i + 1 == m && j + 1 == n)
 
 
 getNeighbourDict : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
