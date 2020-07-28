@@ -325,13 +325,43 @@ updateCell coords dict =
     Dict.update coords updateFunc dict
 
 
+getNewBoxDict : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
+getNewBoxDict occupied dict =
+    Dict.foldr
+        (\k v acc ->
+            case getNewStatus2 v << getCount k <| occupied of
+                Occupied ->
+                    Dict.insert k Occupied acc
+
+                _ ->
+                    acc
+        )
+        Dict.empty
+        dict
+
+
+getCount : Coordinates -> Dict Coordinates BoxStatus -> Int
+getCount coords =
+    Dict.foldr
+        (\ok ov acc ->
+            if isNeighbour coords ok then
+                acc + 1
+
+            else
+                acc
+        )
+        0
+
+
 applyGameOfLifeRules : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
 applyGameOfLifeRules boxes =
     boxes
         -- |> Debug.log "boxes"
+        -- |> getNeighbourDict
+        -- |> getCountOfOccupiedNeighbours boxes
+        -- |> getNewBoxes
         |> getNeighbourDict
-        |> getCountOfOccupiedNeighbours boxes
-        |> getNewBoxes
+        |> getNewBoxDict boxes
 
 
 getNewBoxes : Dict Coordinates ( BoxStatus, Int ) -> Dict Coordinates BoxStatus
@@ -414,6 +444,24 @@ getNeighbours coords =
 
 getNewStatus : ( BoxStatus, Int ) -> BoxStatus
 getNewStatus ( prevStatus, n ) =
+    case prevStatus of
+        Occupied ->
+            if n == 2 || n == 3 then
+                Occupied
+
+            else
+                UnOccupied
+
+        UnOccupied ->
+            if n == 3 then
+                Occupied
+
+            else
+                UnOccupied
+
+
+getNewStatus2 : BoxStatus -> Int -> BoxStatus
+getNewStatus2 prevStatus n =
     case prevStatus of
         Occupied ->
             if n == 2 || n == 3 then
