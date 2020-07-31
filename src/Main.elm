@@ -1,16 +1,20 @@
 module Main exposing (..)
 
+-- import Html.Styled exposing (..)
+-- import Html.Styled.Attributes exposing (css, src)
+-- import Html.Styled.Events exposing (onClick)
+-- import Css as Css exposing (..)
+
 import Browser
 import CellGrid as CG
 import CellGrid.Image as CGI
 import CellGrid.Render as CGR
 import Color
-import Css as Css exposing (..)
 import Dict exposing (Dict)
-import Html
-import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (css, src)
-import Html.Styled.Events exposing (onClick)
+import Element as E exposing (Element)
+import Element.Events as Events
+import Element.Input as Input
+import Html exposing (Html)
 import List.Extra exposing (andThen)
 import Maybe.Extra exposing (isJust)
 import Patterns
@@ -20,7 +24,7 @@ import Patterns
         , Pattern(..)
         , getPattern
         )
-import Styles exposing (container, controls)
+import Styles exposing (container, controlsStyle)
 import Time
 
 
@@ -165,33 +169,17 @@ update msg model =
 ---- VIEW ----
 
 
-view : Model -> Html.Html Msg
+view : Model -> Html Msg
 view { height, width, cellSize, mode, boxes, speed } =
-    toUnstyled <|
-        div [ container ]
-            [ drawGrid height width cellSize boxes mode
-            , div [ controls ]
-                [ button [ onClick (ChangeMode mode) ] [ text <| getModeButtonText mode ]
-                , button [ onClick (ChangeSpeed 1) ] [ text <| "Increase Speed" ]
-                , text <| String.fromInt <| getSpeed speed
-                , button [ onClick (ChangeSpeed -1) ] [ text <| "Decrease Speed" ]
-                , button [ onClick (ChangePattern Toad) ] [ text <| "Toad" ]
-                , button [ onClick (ChangePattern Glider) ] [ text <| "Glider" ]
-                , button [ onClick (ChangePattern DieHard) ] [ text <| "DieHard" ]
-                , button [ onClick (ChangePattern RPentomino) ] [ text <| "The R-pentomino" ]
-                , button [ onClick (ChangePattern Acorn) ] [ text <| "Acorn" ]
-                , button [ onClick (ChangePattern Talker) ] [ text <| "Talker" ]
-                , button [ onClick (ChangePattern GosperGliderGun) ] [ text <| "Gosper Glider Gun" ]
-                , button [ onClick Reset ] [ text <| "Reset" ]
-                , button [ onClick (ChangeWidth 2) ] [ text <| "Increase Width" ]
-                , button [ onClick (ChangeWidth -2) ] [ text <| "Decrease Width" ]
-                , button [ onClick (ChangeHeight 2) ] [ text <| "Increase Height" ]
-                , button [ onClick (ChangeHeight -2) ] [ text <| "Decrease Height" ]
+    E.layout [] <|
+        E.el [] <|
+            E.row []
+                [ sidebar mode speed
+                , drawGrid height width cellSize boxes mode
                 ]
-            ]
 
 
-drawGrid : Int -> Int -> Float -> Dict Coordinates BoxStatus -> Mode -> Html Msg
+drawGrid : Int -> Int -> Float -> Dict Coordinates BoxStatus -> Mode -> Element Msg
 drawGrid height width cellSize boxes mode =
     let
         dimensions =
@@ -210,15 +198,37 @@ drawGrid height width cellSize boxes mode =
         cellGrid =
             CG.initialize { rows = height, columns = width } (getBoxStatus boxes)
     in
-    map CellGridMsg <|
-        fromUnstyled <|
+    E.html <|
+        Html.map CellGridMsg <|
             CGR.asHtml
                 dimensions
                 cellStyle
                 cellGrid
 
 
+sidebar : Mode -> Speed -> Element Msg
+sidebar mode speed =
+    E.column []
+        [ E.text <| String.fromInt <| getSpeed speed
+        , Input.button [] { onPress = Just <| ChangeMode mode, label = E.text <| getModeButtonText mode }
+        ]
 
+
+
+-- , Input.button [ Events.onClick (ChangeSpeed 1) ] [ E.text <| "Increase Speed" ]
+-- , Input.button [ Events.onClick (ChangeSpeed -1) ] [ E.text <| "Decrease Speed" ]
+-- , Input.button [ Events.onClick (ChangePattern Toad) ] [ E.text <| "Toad" ]
+-- , Input.button [ Events.onClick (ChangePattern Glider) ] [ E.text <| "Glider" ]
+-- , Input.button [ Events.onClick (ChangePattern DieHard) ] [ E.text <| "DieHard" ]
+-- , Input.button [ Events.onClick (ChangePattern RPentomino) ] [ E.text <| "The R-pentomino" ]
+-- , Input.button [ Events.onClick (ChangePattern Acorn) ] [ E.text <| "Acorn" ]
+-- , Input.button [ Events.onClick (ChangePattern Talker) ] [ E.text <| "Talker" ]
+-- , Input.button [ Events.onClick (ChangePattern GosperGliderGun) ] [ E.text <| "Gosper Glider Gun" ]
+-- , Input.button [ Events.onClick Reset ] [ E.text <| "Reset" ]
+-- , Input.button [ Events.onClick (ChangeWidth 2) ] [ E.text <| "Increase Width" ]
+-- , Input.button [ Events.onClick (ChangeWidth -2) ] [ E.text <| "Decrease Width" ]
+-- , Input.button [ Events.onClick (ChangeHeight 2) ] [ E.text <| "Increase Height" ]
+-- , Input.button [ Events.onClick (ChangeHeight -2) ] [ E.text <| "Decrease Height" ]
 ---- PROGRAM ----
 
 
@@ -357,47 +367,8 @@ applyGameOfLifeRules : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
 applyGameOfLifeRules boxes =
     boxes
         -- |> Debug.log "boxes"
-        -- |> getNeighbourDict
-        -- |> getCountOfOccupiedNeighbours boxes
-        -- |> getNewBoxes
         |> getNeighbourDict
         |> getNewBoxDict boxes
-
-
-getNewBoxes : Dict Coordinates ( BoxStatus, Int ) -> Dict Coordinates BoxStatus
-getNewBoxes =
-    Dict.foldr
-        (\k v acc ->
-            let
-                newStatus =
-                    getNewStatus v
-            in
-            case newStatus of
-                Occupied ->
-                    Dict.insert k newStatus acc
-
-                _ ->
-                    acc
-        )
-        Dict.empty
-
-
-getCountOfOccupiedNeighbours : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus -> Dict Coordinates ( BoxStatus, Int )
-getCountOfOccupiedNeighbours occupied dict =
-    let
-        countOccupiedNeighbours input =
-            Dict.foldr
-                (\k v acc ->
-                    if isNeighbour input k then
-                        acc + 1
-
-                    else
-                        acc
-                )
-                0
-                occupied
-    in
-    Dict.map (\k v -> ( v, countOccupiedNeighbours k )) dict
 
 
 isNeighbour : Coordinates -> Coordinates -> Bool

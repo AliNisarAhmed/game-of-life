@@ -33,8 +33,8 @@ container =
         ]
 
 
-controls : Attribute msg
-controls =
+controlsStyle : Attribute msg
+controlsStyle =
     css <|
         [ displayFlex
         , flexDirection column
