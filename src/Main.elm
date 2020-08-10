@@ -1,19 +1,14 @@
 module Main exposing (..)
 
--- import Html.Styled exposing (..)
--- import Html.Styled.Attributes exposing (css, src)
--- import Html.Styled.Events exposing (onClick)
--- import Css as Css exposing (..)
-
 import Browser
 import CellGrid as CG
-import CellGrid.Image as CGI
 import CellGrid.Render as CGR
 import Color
 import Dict exposing (Dict)
 import Element as E exposing (Element)
 import Element.Events as Events
 import Element.Input as Input
+import FeatherIcons
 import Html exposing (Html)
 import List.Extra exposing (andThen)
 import Maybe.Extra exposing (isJust)
@@ -24,7 +19,7 @@ import Patterns
         , Pattern(..)
         , getPattern
         )
-import Styles exposing (container, controlsStyle)
+import Styles exposing (bookStyles, container, gridContainer, gridLayout, gridStyles, layout, sidebarStyles)
 import Time
 
 
@@ -32,6 +27,11 @@ type Mode
     = Init
     | Play
     | Pause
+
+
+type BookStatus
+    = Open
+    | Closed
 
 
 type Rule
@@ -79,6 +79,7 @@ type alias Model =
     , boxes : Dict Coordinates BoxStatus
     , mode : Mode
     , speed : Speed
+    , bookStatus : BookStatus
     }
 
 
@@ -90,6 +91,7 @@ init initialWidth =
       , boxes = Patterns.default initialWidth 70
       , mode = Init
       , speed = Speed 20
+      , bookStatus = Closed
       }
     , Cmd.none
     )
@@ -108,6 +110,7 @@ type Msg
     | ChangePattern Pattern
     | ChangeWidth Int
     | ChangeHeight Int
+    | ToggleBookStatus
     | Reset
 
 
@@ -164,18 +167,23 @@ update msg model =
         ChangeHeight n ->
             ( { model | height = model.height + n }, Cmd.none )
 
+        ToggleBookStatus ->
+            ( { model | bookStatus = toggleBookStatus model.bookStatus }, Cmd.none )
+
 
 
 ---- VIEW ----
 
 
 view : Model -> Html Msg
-view { height, width, cellSize, mode, boxes, speed } =
+view { height, width, cellSize, mode, boxes, speed, bookStatus } =
     E.layout [] <|
-        E.el [] <|
-            E.row []
-                [ sidebar mode speed
-                , drawGrid height width cellSize boxes mode
+        E.el container <|
+            E.row layout
+                [ sidebar mode speed bookStatus
+                , E.row (gridContainer ++ [ E.inFront <| book bookStatus ]) <|
+                    [ E.el gridLayout <| E.el gridStyles <| drawGrid height width cellSize boxes mode
+                    ]
                 ]
 
 
@@ -206,29 +214,77 @@ drawGrid height width cellSize boxes mode =
                 cellGrid
 
 
-sidebar : Mode -> Speed -> Element Msg
-sidebar mode speed =
-    E.column []
-        [ E.text <| String.fromInt <| getSpeed speed
-        , Input.button [] { onPress = Just <| ChangeMode mode, label = E.text <| getModeButtonText mode }
+sidebar : Mode -> Speed -> BookStatus -> Element Msg
+sidebar mode speed bookStatus =
+    E.column sidebarStyles
+        [ Input.button [] { onPress = Just <| ChangeSpeed 1, label = E.text <| "Increase Speed" }
+        , E.text <| String.fromInt <| getSpeed speed
+        , Input.button [] { onPress = Just <| ChangeSpeed -1, label = E.text <| "Decrease Speed" }
+        , Input.button [] { onPress = Just ToggleBookStatus, label = bookIcon bookStatus }
+        , Input.button [] { onPress = Just <| Reset, label = resetIcon }
+        , Input.button [] { onPress = Just <| ChangeMode mode, label = getModeButtonIcon mode }
         ]
 
 
+book : BookStatus -> Element Msg
+book bs =
+    case bs of
+        Closed ->
+            E.none
 
--- , Input.button [ Events.onClick (ChangeSpeed 1) ] [ E.text <| "Increase Speed" ]
--- , Input.button [ Events.onClick (ChangeSpeed -1) ] [ E.text <| "Decrease Speed" ]
--- , Input.button [ Events.onClick (ChangePattern Toad) ] [ E.text <| "Toad" ]
--- , Input.button [ Events.onClick (ChangePattern Glider) ] [ E.text <| "Glider" ]
--- , Input.button [ Events.onClick (ChangePattern DieHard) ] [ E.text <| "DieHard" ]
--- , Input.button [ Events.onClick (ChangePattern RPentomino) ] [ E.text <| "The R-pentomino" ]
--- , Input.button [ Events.onClick (ChangePattern Acorn) ] [ E.text <| "Acorn" ]
--- , Input.button [ Events.onClick (ChangePattern Talker) ] [ E.text <| "Talker" ]
--- , Input.button [ Events.onClick (ChangePattern GosperGliderGun) ] [ E.text <| "Gosper Glider Gun" ]
--- , Input.button [ Events.onClick Reset ] [ E.text <| "Reset" ]
--- , Input.button [ Events.onClick (ChangeWidth 2) ] [ E.text <| "Increase Width" ]
--- , Input.button [ Events.onClick (ChangeWidth -2) ] [ E.text <| "Decrease Width" ]
--- , Input.button [ Events.onClick (ChangeHeight 2) ] [ E.text <| "Increase Height" ]
--- , Input.button [ Events.onClick (ChangeHeight -2) ] [ E.text <| "Decrease Height" ]
+        Open ->
+            E.row bookStyles
+                [ Input.button [] { onPress = Just <| ChangePattern Toad, label = E.text <| "Toad" }
+                , Input.button [] { onPress = Just <| ChangePattern Toad, label = E.text <| "Toad" }
+                , Input.button [] { onPress = Just <| ChangePattern Toad, label = E.text <| "Toad" }
+                , Input.button [] { onPress = Just <| ChangePattern Toad, label = E.text <| "Toad" }
+                , Input.button [] { onPress = Just <| ChangePattern Toad, label = E.text <| "Toad" }
+                , Input.button [] { onPress = Just <| ChangePattern Toad, label = E.text <| "Toad" }
+                , Input.button [] { onPress = Just <| ChangePattern Toad, label = E.text <| "Toad" }
+                ]
+
+
+bookIcon : BookStatus -> Element Msg
+bookIcon bs =
+    case bs of
+        Closed ->
+            FeatherIcons.book
+                |> FeatherIcons.toHtml []
+                |> E.html
+
+        Open ->
+            FeatherIcons.bookOpen
+                |> FeatherIcons.toHtml []
+                |> E.html
+
+
+resetIcon : Element Msg
+resetIcon =
+    FeatherIcons.refreshCw
+        |> FeatherIcons.toHtml []
+        |> E.html
+
+
+getModeButtonIcon : Mode -> Element Msg
+getModeButtonIcon mode =
+    case mode of
+        Init ->
+            FeatherIcons.play
+                |> FeatherIcons.toHtml []
+                |> E.html
+
+        Play ->
+            FeatherIcons.pause
+                |> FeatherIcons.toHtml []
+                |> E.html
+
+        Pause ->
+            FeatherIcons.play
+                |> FeatherIcons.toHtml []
+                |> E.html
+
+
+
 ---- PROGRAM ----
 
 
@@ -307,19 +363,6 @@ getBoxStatus boxes i j =
             UnOccupied
 
 
-getModeButtonText : Mode -> String
-getModeButtonText m =
-    case m of
-        Init ->
-            "Start"
-
-        Play ->
-            "Playing"
-
-        Pause ->
-            "Paused"
-
-
 updateCell : Coordinates -> Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
 updateCell coords dict =
     let
@@ -366,7 +409,7 @@ getCount coords =
 applyGameOfLifeRules : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
 applyGameOfLifeRules boxes =
     boxes
-        -- |> Debug.log "boxes"
+        --     -- |> Debug.log "boxes"
         |> getNeighbourDict
         |> getNewBoxDict boxes
 
@@ -447,3 +490,13 @@ getNewStatus2 prevStatus n =
 
             else
                 UnOccupied
+
+
+toggleBookStatus : BookStatus -> BookStatus
+toggleBookStatus bs =
+    case bs of
+        Open ->
+            Closed
+
+        Closed ->
+            Open

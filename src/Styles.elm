@@ -1,41 +1,73 @@
 module Styles exposing (..)
 
 import Css exposing (..)
-import Html.Styled exposing (Attribute)
-import Html.Styled.Attributes exposing (css)
+import Element as E exposing (Attribute, Element)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
+import Element.Input as Input
 
 
-boxStyles : Bool -> Attribute msg
-boxStyles clicked =
-    let
-        commonStyles =
-            [ width (px 100)
-            , height (px 100)
-            , border3 (px 10) solid (rgb 11 14 17)
-            ]
-    in
-    if clicked then
-        css <| commonStyles ++ [ backgroundColor (rgb 220 210 145) ]
-
-    else
-        css commonStyles
+explain =
+    E.explain <| Debug.todo
 
 
-container : Attribute msg
+container : List (Attribute msg)
 container =
-    css <|
-        [ width (pct 100)
-        , height (vh 100)
-        , backgroundColor (hex "#333")
-        , displayFlex
-        , justifyContent center
-        , alignItems center
-        ]
+    [ E.height E.fill
+    , E.width E.fill
+    ]
 
 
-controlsStyle : Attribute msg
-controlsStyle =
-    css <|
-        [ displayFlex
-        , flexDirection column
-        ]
+layout : List (Attribute msg)
+layout =
+    [ E.height E.fill
+    , E.width E.fill
+    ]
+
+
+sidebarStyles : List (Attribute msg)
+sidebarStyles =
+    [ E.height <| E.fill
+    , Border.width 1
+    , E.spaceEvenly
+    , E.paddingXY 10 10
+    ]
+
+
+gridContainer : List (Attribute msg)
+gridContainer =
+    [ E.spaceEvenly
+    , E.centerX
+    , E.centerY
+    , E.width E.fill
+    , E.height E.fill
+    ]
+
+
+gridLayout : List (Attribute msg)
+gridLayout =
+    [ E.centerY
+    , E.centerX
+    , E.width E.fill
+    , E.height E.fill
+    ]
+
+
+gridStyles : List (Attribute msg)
+gridStyles =
+    [ E.centerY
+    , E.centerX
+    ]
+
+
+bookStyles : List (Attribute msg)
+bookStyles =
+    [ E.spaceEvenly
+    , E.centerX
+    , E.centerY
+    , Border.width 10
+    , E.width E.fill
+    , E.height E.fill
+    , Background.color <| E.rgb255 123 123 123
+    ]
