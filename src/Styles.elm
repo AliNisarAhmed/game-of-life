@@ -2,11 +2,9 @@ module Styles exposing (..)
 
 import Color as C
 import Css exposing (..)
-import Element as E exposing (Attribute, Color, Element)
+import Element as E exposing (Attribute, Color)
 import Element.Background as Background
 import Element.Border as Border
-import Element.Font as Font
-import Element.Input as Input
 import Svg
 import Svg.Attributes as SA
 
@@ -107,8 +105,7 @@ gridStyles =
 bookStyles : List (Attribute msg)
 bookStyles =
     [ E.spaceEvenly
-    , E.centerX
-    , E.centerY
+    , E.paddingXY 30 10
     , Border.width 10
     , E.width E.fill
     , E.height E.fill
@@ -124,3 +121,8 @@ iconStyles : List (Svg.Attribute msg)
 iconStyles =
     [ SA.color "#ffffff"
     ]
+
+
+hiddenIcon : List (Attribute msg)
+hiddenIcon =
+    [ E.transparent True ]

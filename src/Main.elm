@@ -5,7 +5,7 @@ import CellGrid as CG
 import CellGrid.Render as CGR
 import Color
 import Dict exposing (Dict)
-import Element as E exposing (Element)
+import Element as E exposing (Attribute, Element)
 import Element.Input as Input
 import FeatherIcons
 import Html exposing (Html)
@@ -17,8 +17,9 @@ import Patterns
         , Coordinates
         , Pattern(..)
         , getPattern
+        , patternList
         )
-import Styles exposing (black, bookStyles, container, gridContainer, gridLayout, gridStyles, iconStyles, layout, occupiedColor, sidebarStyles, unOccupiedColor)
+import Styles exposing (black, bookStyles, container, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, sidebarStyles, unOccupiedColor)
 import Time
 
 
@@ -75,6 +76,7 @@ type alias Model =
     { height : Int
     , width : Int
     , cellSize : Float
+    , pattern : Pattern
     , boxes : Dict Coordinates BoxStatus
     , mode : Mode
     , speed : Speed
@@ -87,6 +89,7 @@ init initialWidth =
     ( { width = initialWidth
       , height = 70
       , cellSize = 10.0
+      , pattern = Patterns.defaultPattern
       , boxes = Patterns.default initialWidth 70
       , mode = Init
       , speed = Speed 20
@@ -155,10 +158,10 @@ update msg model =
             ( { model | mode = newMode }, Cmd.none )
 
         ChangePattern ptr ->
-            ( { model | boxes = getPattern ptr model.width model.height }, Cmd.none )
+            ( { model | pattern = ptr, boxes = getPattern ptr model.width model.height, bookStatus = Closed }, Cmd.none )
 
         Reset ->
-            ( { model | boxes = Patterns.default model.width model.height, mode = Init }, Cmd.none )
+            ( { model | mode = Init, boxes = getPattern model.pattern model.width model.height }, Cmd.none )
 
         ChangeWidth n ->
             ( { model | width = model.width + n }, Cmd.none )
@@ -215,14 +218,28 @@ drawGrid height width cellSize boxes mode =
 
 sidebar : Mode -> Speed -> BookStatus -> Element Msg
 sidebar mode speed bookStatus =
+    let
+        toggleBookStatusButton =
+            Input.button [ E.centerY ] { onPress = Just ToggleBookStatus, label = bookIcon bookStatus }
+    in
     E.column sidebarStyles
-        [ Input.button [] { onPress = Just <| ChangeSpeed 1, label = increaseSpeedIcon }
+        [ Input.button (sidebarButtonStyles bookStatus) { onPress = Just <| ChangeSpeed 1, label = increaseSpeedIcon }
         , E.text <| String.fromInt <| getSpeed speed
-        , Input.button [] { onPress = Just <| ChangeSpeed -1, label = decreaseSpeedIcon }
-        , Input.button [] { onPress = Just ToggleBookStatus, label = bookIcon bookStatus }
-        , Input.button [] { onPress = Just <| Reset, label = resetIcon }
-        , Input.button [] { onPress = Just <| ChangeMode mode, label = getModeButtonIcon mode }
+        , Input.button (sidebarButtonStyles bookStatus) { onPress = Just <| ChangeSpeed -1, label = decreaseSpeedIcon }
+        , toggleBookStatusButton
+        , Input.button (sidebarButtonStyles bookStatus) { onPress = Just <| Reset, label = resetIcon }
+        , Input.button (sidebarButtonStyles bookStatus) { onPress = Just <| ChangeMode mode, label = getModeButtonIcon mode }
         ]
+
+
+sidebarButtonStyles : BookStatus -> List (Attribute Msg)
+sidebarButtonStyles bookStatus =
+    case bookStatus of
+        Open ->
+            hiddenIcon
+
+        Closed ->
+            []
 
 
 decreaseSpeedIcon : Element Msg
@@ -246,27 +263,31 @@ book bs =
             E.none
 
         Open ->
-            E.row bookStyles
-                [ Input.button [] { onPress = Just <| ChangePattern Toad, label = E.text <| "Toad" }
-                , Input.button [] { onPress = Just <| ChangePattern Toad, label = E.text <| "Toad" }
-                , Input.button [] { onPress = Just <| ChangePattern Toad, label = E.text <| "Toad" }
-                , Input.button [] { onPress = Just <| ChangePattern Toad, label = E.text <| "Toad" }
-                , Input.button [] { onPress = Just <| ChangePattern Toad, label = E.text <| "Toad" }
-                , Input.button [] { onPress = Just <| ChangePattern Toad, label = E.text <| "Toad" }
-                , Input.button [] { onPress = Just <| ChangePattern Toad, label = E.text <| "Toad" }
-                ]
+            E.wrappedRow bookStyles
+                (patternList
+                    |> List.map
+                        (\( name, pattern ) ->
+                            E.column []
+                                [ E.image [] { src = placeholderImage, description = "pattern" }
+                                , Input.button []
+                                    { onPress = Just <| ChangePattern pattern
+                                    , label = E.text <| name
+                                    }
+                                ]
+                        )
+                )
 
 
 bookIcon : BookStatus -> Element Msg
 bookIcon bs =
     case bs of
         Closed ->
-            FeatherIcons.book
+            FeatherIcons.menu
                 |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
         Open ->
-            FeatherIcons.bookOpen
+            FeatherIcons.x
                 |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
@@ -513,3 +534,7 @@ toggleBookStatus bs =
 
         Closed ->
             Open
+
+
+placeholderImage =
+    "https://via.placeholder.com/300"

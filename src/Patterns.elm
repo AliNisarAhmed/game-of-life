@@ -3,7 +3,10 @@ module Patterns exposing
     , Coordinates
     , Pattern(..)
     , default
+    , defaultPattern
     , getPattern
+    , patternDict
+    , patternList
     )
 
 import Dict exposing (Dict)
@@ -20,6 +23,11 @@ type alias PatternFunction =
 
 type alias Coordinates =
     ( Int, Int )
+
+
+defaultPattern : Pattern
+defaultPattern =
+    Oscillator
 
 
 default : PatternFunction
@@ -200,6 +208,19 @@ gosperGliderGun width height =
         , ( ( 9, 13 ), Occupied )
         , ( ( 9, 14 ), Occupied )
         ]
+
+
+patternList : List ( String, Pattern )
+patternList =
+    [ ( patternToString Oscillator, Oscillator )
+    , ( patternToString Glider, Glider )
+    , ( patternToString DieHard, DieHard )
+    , ( patternToString RPentomino, RPentomino )
+    , ( patternToString Acorn, Acorn )
+    , ( patternToString Toad, Toad )
+    , ( patternToString Talker, Talker )
+    , ( patternToString GosperGliderGun, GosperGliderGun )
+    ]
 
 
 patternDict : Dict String PatternFunction
