@@ -6,7 +6,6 @@ import CellGrid.Render as CGR
 import Color
 import Dict exposing (Dict)
 import Element as E exposing (Element)
-import Element.Events as Events
 import Element.Input as Input
 import FeatherIcons
 import Html exposing (Html)
@@ -19,7 +18,7 @@ import Patterns
         , Pattern(..)
         , getPattern
         )
-import Styles exposing (bookStyles, container, gridContainer, gridLayout, gridStyles, layout, sidebarStyles)
+import Styles exposing (black, bookStyles, container, gridContainer, gridLayout, gridStyles, iconStyles, layout, occupiedColor, sidebarStyles, unOccupiedColor)
 import Time
 
 
@@ -200,7 +199,7 @@ drawGrid height width cellSize boxes mode =
             , cellHeight = cellSize
             , toColor = toColor
             , gridLineWidth = 1
-            , gridLineColor = Color.black
+            , gridLineColor = black
             }
 
         cellGrid =
@@ -217,13 +216,27 @@ drawGrid height width cellSize boxes mode =
 sidebar : Mode -> Speed -> BookStatus -> Element Msg
 sidebar mode speed bookStatus =
     E.column sidebarStyles
-        [ Input.button [] { onPress = Just <| ChangeSpeed 1, label = E.text <| "Increase Speed" }
+        [ Input.button [] { onPress = Just <| ChangeSpeed 1, label = increaseSpeedIcon }
         , E.text <| String.fromInt <| getSpeed speed
-        , Input.button [] { onPress = Just <| ChangeSpeed -1, label = E.text <| "Decrease Speed" }
+        , Input.button [] { onPress = Just <| ChangeSpeed -1, label = decreaseSpeedIcon }
         , Input.button [] { onPress = Just ToggleBookStatus, label = bookIcon bookStatus }
         , Input.button [] { onPress = Just <| Reset, label = resetIcon }
         , Input.button [] { onPress = Just <| ChangeMode mode, label = getModeButtonIcon mode }
         ]
+
+
+decreaseSpeedIcon : Element Msg
+decreaseSpeedIcon =
+    FeatherIcons.chevronsDown
+        |> FeatherIcons.toHtml iconStyles
+        |> E.html
+
+
+increaseSpeedIcon : Element Msg
+increaseSpeedIcon =
+    FeatherIcons.chevronsUp
+        |> FeatherIcons.toHtml iconStyles
+        |> E.html
 
 
 book : BookStatus -> Element Msg
@@ -249,19 +262,19 @@ bookIcon bs =
     case bs of
         Closed ->
             FeatherIcons.book
-                |> FeatherIcons.toHtml []
+                |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
         Open ->
             FeatherIcons.bookOpen
-                |> FeatherIcons.toHtml []
+                |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
 
 resetIcon : Element Msg
 resetIcon =
     FeatherIcons.refreshCw
-        |> FeatherIcons.toHtml []
+        |> FeatherIcons.toHtml iconStyles
         |> E.html
 
 
@@ -270,17 +283,17 @@ getModeButtonIcon mode =
     case mode of
         Init ->
             FeatherIcons.play
-                |> FeatherIcons.toHtml []
+                |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
         Play ->
             FeatherIcons.pause
-                |> FeatherIcons.toHtml []
+                |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
         Pause ->
             FeatherIcons.play
-                |> FeatherIcons.toHtml []
+                |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
 
@@ -319,10 +332,10 @@ toColor : BoxStatus -> Color.Color
 toColor box =
     case box of
         Occupied ->
-            Color.green
+            occupiedColor
 
         _ ->
-            Color.red
+            unOccupiedColor
 
 
 toggleStatus : BoxStatus -> BoxStatus
