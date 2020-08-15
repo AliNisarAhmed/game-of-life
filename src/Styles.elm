@@ -5,6 +5,7 @@ import Css exposing (..)
 import Element as E exposing (Attribute, Color)
 import Element.Background as Background
 import Element.Border as Border
+import Element.Font as Font
 import Svg
 import Svg.Attributes as SA
 
@@ -16,6 +17,11 @@ import Svg.Attributes as SA
 black : C.Color
 black =
     C.black
+
+
+white : Color
+white =
+    E.rgb255 255 255 255
 
 
 backgroundColor : Color
@@ -126,3 +132,11 @@ iconStyles =
 hiddenIcon : List (Attribute msg)
 hiddenIcon =
     [ E.transparent True ]
+
+
+patternDisplayStyles : List (Attribute msg)
+patternDisplayStyles =
+    [ E.centerY
+    , E.centerX
+    , Font.color white
+    ]

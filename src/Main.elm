@@ -17,9 +17,10 @@ import Patterns
         , Coordinates
         , Pattern(..)
         , getPattern
+        , maybePatternToString
         , patternList
         )
-import Styles exposing (black, bookStyles, container, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, sidebarStyles, unOccupiedColor)
+import Styles exposing (black, bookStyles, container, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarStyles, unOccupiedColor)
 import Time
 
 
@@ -47,25 +48,65 @@ type alias Survive =
 
 
 
--- Speed is an Int between 1 and 10 both inclusive
+---- SPEED ----
 
 
 type Speed
-    = Speed Int
+    = Slow
+    | Normal
+    | Fast
 
 
-getSpeed : Speed -> Int
-getSpeed (Speed n) =
-    n
+increaseSpeed : Speed -> Speed
+increaseSpeed spd =
+    case spd of
+        Slow ->
+            Normal
+
+        Normal ->
+            Fast
+
+        Fast ->
+            Fast
 
 
-setSpeed : Int -> Speed -> Speed
-setSpeed incr (Speed prev) =
-    if prev + incr > 10 || prev + incr < 1 then
-        Speed prev
+decreaseSpeed : Speed -> Speed
+decreaseSpeed spd =
+    case spd of
+        Fast ->
+            Normal
 
-    else
-        Speed (prev + incr)
+        Normal ->
+            Slow
+
+        Slow ->
+            Slow
+
+
+speedToString : Speed -> String
+speedToString spd =
+    case spd of
+        Slow ->
+            "Slow"
+
+        Normal ->
+            "Normal"
+
+        Fast ->
+            "Fast"
+
+
+speedToValue : Speed -> Int
+speedToValue speed =
+    case speed of
+        Slow ->
+            10
+
+        Normal ->
+            20
+
+        Fast ->
+            30
 
 
 
@@ -76,7 +117,7 @@ type alias Model =
     { height : Int
     , width : Int
     , cellSize : Float
-    , pattern : Pattern
+    , pattern : Maybe Pattern
     , boxes : Dict Coordinates BoxStatus
     , mode : Mode
     , speed : Speed
@@ -89,10 +130,10 @@ init initialWidth =
     ( { width = initialWidth
       , height = 70
       , cellSize = 10.0
-      , pattern = Patterns.defaultPattern
+      , pattern = Just Patterns.defaultPattern
       , boxes = Patterns.default initialWidth 70
       , mode = Init
-      , speed = Speed 20
+      , speed = Normal
       , bookStatus = Closed
       }
     , Cmd.none
@@ -108,7 +149,8 @@ type Msg
     | CellGridMsg CGR.Msg
     | Tick Time.Posix
     | ChangeMode Mode
-    | ChangeSpeed Int
+    | IncreaseSpeed
+    | DecreaseSpeed
     | ChangePattern Pattern
     | ChangeWidth Int
     | ChangeHeight Int
@@ -131,7 +173,7 @@ update msg model =
                     updatedDict =
                         updateCell coordinates model.boxes
                 in
-                ( { model | boxes = updatedDict }, Cmd.none )
+                ( { model | boxes = updatedDict, pattern = Nothing }, Cmd.none )
 
             else
                 ( model, Cmd.none )
@@ -139,8 +181,11 @@ update msg model =
         Tick _ ->
             ( { model | boxes = applyGameOfLifeRules model.boxes }, Cmd.none )
 
-        ChangeSpeed n ->
-            ( { model | speed = setSpeed n model.speed }, Cmd.none )
+        IncreaseSpeed ->
+            ( { model | speed = increaseSpeed model.speed }, Cmd.none )
+
+        DecreaseSpeed ->
+            ( { model | speed = decreaseSpeed model.speed }, Cmd.none )
 
         ChangeMode prevMode ->
             let
@@ -158,10 +203,20 @@ update msg model =
             ( { model | mode = newMode }, Cmd.none )
 
         ChangePattern ptr ->
-            ( { model | pattern = ptr, boxes = getPattern ptr model.width model.height, bookStatus = Closed }, Cmd.none )
+            ( { model | pattern = Just ptr, boxes = getPattern ptr model.width model.height, bookStatus = Closed }, Cmd.none )
 
         Reset ->
-            ( { model | mode = Init, boxes = getPattern model.pattern model.width model.height }, Cmd.none )
+            let
+                ptr =
+                    Maybe.withDefault Patterns.defaultPattern model.pattern
+            in
+            ( { model
+                | mode = Init
+                , boxes = getPattern ptr model.width model.height
+                , pattern = Just Patterns.defaultPattern
+              }
+            , Cmd.none
+            )
 
         ChangeWidth n ->
             ( { model | width = model.width + n }, Cmd.none )
@@ -178,13 +233,14 @@ update msg model =
 
 
 view : Model -> Html Msg
-view { height, width, cellSize, mode, boxes, speed, bookStatus } =
+view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern } =
     E.layout [] <|
         E.el container <|
             E.row layout
                 [ sidebar mode speed bookStatus
-                , E.row (gridContainer ++ [ E.inFront <| book bookStatus ]) <|
-                    [ E.el gridLayout <| E.el gridStyles <| drawGrid height width cellSize boxes mode
+                , E.column (gridContainer ++ [ E.inFront <| book bookStatus ]) <|
+                    [ E.el patternDisplayStyles <| E.text <| ("Current Pattern: " ++ maybePatternToString pattern)
+                    , E.el gridLayout <| E.el gridStyles <| drawGrid height width cellSize boxes mode
                     ]
                 ]
 
@@ -223,9 +279,9 @@ sidebar mode speed bookStatus =
             Input.button [ E.centerY ] { onPress = Just ToggleBookStatus, label = bookIcon bookStatus }
     in
     E.column sidebarStyles
-        [ Input.button (sidebarButtonStyles bookStatus) { onPress = Just <| ChangeSpeed 1, label = increaseSpeedIcon }
-        , E.text <| String.fromInt <| getSpeed speed
-        , Input.button (sidebarButtonStyles bookStatus) { onPress = Just <| ChangeSpeed -1, label = decreaseSpeedIcon }
+        [ Input.button (sidebarButtonStyles bookStatus) { onPress = Just IncreaseSpeed, label = increaseSpeedIcon }
+        , E.text <| speedToString speed
+        , Input.button (sidebarButtonStyles bookStatus) { onPress = Just DecreaseSpeed, label = decreaseSpeedIcon }
         , toggleBookStatusButton
         , Input.button (sidebarButtonStyles bookStatus) { onPress = Just <| Reset, label = resetIcon }
         , Input.button (sidebarButtonStyles bookStatus) { onPress = Just <| ChangeMode mode, label = getModeButtonIcon mode }
@@ -342,7 +398,7 @@ subscriptions { mode, speed } =
             Sub.none
 
         Play ->
-            Time.every (2000 / (Basics.toFloat <| getSpeed speed)) Tick
+            Time.every (2000 / (Basics.toFloat <| speedToValue speed)) Tick
 
 
 

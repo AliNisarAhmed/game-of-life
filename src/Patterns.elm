@@ -5,6 +5,7 @@ module Patterns exposing
     , default
     , defaultPattern
     , getPattern
+    , maybePatternToString
     , patternDict
     , patternList
     )
@@ -279,3 +280,13 @@ patternToString ptr =
 getPattern : Pattern -> PatternFunction
 getPattern ptr =
     Maybe.withDefault default <| Dict.get (patternToString ptr) patternDict
+
+
+maybePatternToString : Maybe Pattern -> String
+maybePatternToString ptr =
+    case ptr of
+        Just p ->
+            patternToString p
+
+        Nothing ->
+            "Custom"
