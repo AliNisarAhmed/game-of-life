@@ -20,7 +20,7 @@ import Patterns
         , maybePatternToString
         , patternList
         )
-import Styles exposing (black, bookStyles, container, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarStyles, unOccupiedColor)
+import Styles exposing (black, bookStyles, container, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarStyles, textStyles, unOccupiedColor)
 import Time
 
 
@@ -122,6 +122,7 @@ type alias Model =
     , mode : Mode
     , speed : Speed
     , bookStatus : BookStatus
+    , generations : Int
     }
 
 
@@ -135,6 +136,7 @@ init initialWidth =
       , mode = Init
       , speed = Normal
       , bookStatus = Closed
+      , generations = 0
       }
     , Cmd.none
     )
@@ -179,7 +181,12 @@ update msg model =
                 ( model, Cmd.none )
 
         Tick _ ->
-            ( { model | boxes = applyGameOfLifeRules model.boxes }, Cmd.none )
+            ( { model
+                | boxes = applyGameOfLifeRules model.boxes
+                , generations = model.generations + 1
+              }
+            , Cmd.none
+            )
 
         IncreaseSpeed ->
             ( { model | speed = increaseSpeed model.speed }, Cmd.none )
@@ -203,7 +210,13 @@ update msg model =
             ( { model | mode = newMode }, Cmd.none )
 
         ChangePattern ptr ->
-            ( { model | pattern = Just ptr, boxes = getPattern ptr model.width model.height, bookStatus = Closed }, Cmd.none )
+            ( { model
+                | pattern = Just ptr
+                , boxes = getPattern ptr model.width model.height
+                , bookStatus = Closed
+              }
+            , Cmd.none
+            )
 
         Reset ->
             let
@@ -214,6 +227,7 @@ update msg model =
                 | mode = Init
                 , boxes = getPattern ptr model.width model.height
                 , pattern = Just Patterns.defaultPattern
+                , generations = 0
               }
             , Cmd.none
             )
@@ -233,14 +247,15 @@ update msg model =
 
 
 view : Model -> Html Msg
-view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern } =
+view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern, generations } =
     E.layout [] <|
         E.el container <|
             E.row layout
                 [ sidebar mode speed bookStatus
                 , E.column (gridContainer ++ [ E.inFront <| book bookStatus ]) <|
-                    [ E.el patternDisplayStyles <| E.text <| ("Current Pattern: " ++ maybePatternToString pattern)
-                    , E.el gridLayout <| E.el gridStyles <| drawGrid height width cellSize boxes mode
+                    [ E.row patternDisplayStyles <| [ E.text <| ("Current Pattern: " ++ maybePatternToString pattern) ]
+                    , E.row gridLayout <| [ E.el gridStyles <| drawGrid height width cellSize boxes mode ]
+                    , E.row [] <| [ displayGeneration generations ]
                     ]
                 ]
 
@@ -279,12 +294,26 @@ sidebar mode speed bookStatus =
             Input.button [ E.centerY ] { onPress = Just ToggleBookStatus, label = bookIcon bookStatus }
     in
     E.column sidebarStyles
-        [ Input.button (sidebarButtonStyles bookStatus) { onPress = Just IncreaseSpeed, label = increaseSpeedIcon }
-        , E.text <| speedToString speed
-        , Input.button (sidebarButtonStyles bookStatus) { onPress = Just DecreaseSpeed, label = decreaseSpeedIcon }
+        [ E.column []
+            [ Input.button (sidebarButtonStyles bookStatus)
+                { onPress = Just IncreaseSpeed
+                , label = increaseSpeedIcon
+                }
+            , E.el textStyles <| E.text <| speedToString speed
+            , Input.button (sidebarButtonStyles bookStatus)
+                { onPress = Just DecreaseSpeed
+                , label = decreaseSpeedIcon
+                }
+            ]
         , toggleBookStatusButton
-        , Input.button (sidebarButtonStyles bookStatus) { onPress = Just <| Reset, label = resetIcon }
-        , Input.button (sidebarButtonStyles bookStatus) { onPress = Just <| ChangeMode mode, label = getModeButtonIcon mode }
+        , Input.button (sidebarButtonStyles bookStatus)
+            { onPress = Just <| Reset
+            , label = resetIcon
+            }
+        , Input.button (sidebarButtonStyles bookStatus)
+            { onPress = Just <| ChangeMode mode
+            , label = getModeButtonIcon mode
+            }
         ]
 
 
@@ -378,6 +407,20 @@ getModeButtonIcon mode =
 ---- PROGRAM ----
 
 
+displayGeneration : Int -> Element Msg
+displayGeneration generations =
+    if generations == 0 then
+        E.row [] <| [ E.none ]
+
+    else
+        E.row textStyles [ E.text <| "Generations: " ++ String.fromInt generations ]
+
+
+placeholderImage : String
+placeholderImage =
+    "https://via.placeholder.com/300"
+
+
 main : Program Int Model Msg
 main =
     Browser.element
@@ -425,6 +468,16 @@ toggleStatus b =
             Occupied
 
 
+toggleBookStatus : BookStatus -> BookStatus
+toggleBookStatus bs =
+    case bs of
+        Open ->
+            Closed
+
+        Closed ->
+            Open
+
+
 getBoxColor : Dict Coordinates BoxStatus -> Int -> Int -> Color.Color
 getBoxColor boxes i j =
     let
@@ -468,6 +521,43 @@ updateCell coords dict =
     Dict.update coords updateFunc dict
 
 
+
+---- Game of Life Algorithm ----
+
+
+applyGameOfLifeRules : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
+applyGameOfLifeRules boxes =
+    boxes
+        --     -- |> Debug.log "boxes"
+        |> getNeighbourDict
+        |> getNewBoxDict boxes
+
+
+getNeighbourDict : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
+getNeighbourDict occupied =
+    Dict.foldr (\k _ acc -> Dict.union acc (getNeighbours k)) occupied occupied
+
+
+getNeighbours : Coordinates -> Dict Coordinates BoxStatus
+getNeighbours coords =
+    coords
+        |> getNeighbourCoords
+        |> Dict.fromList
+
+
+getNeighbourCoords : Coordinates -> List ( Coordinates, BoxStatus )
+getNeighbourCoords ( r, c ) =
+    [ ( ( r - 1, c - 1 ), UnOccupied )
+    , ( ( r - 1, c ), UnOccupied )
+    , ( ( r - 1, c + 1 ), UnOccupied )
+    , ( ( r, c - 1 ), UnOccupied )
+    , ( ( r, c + 1 ), UnOccupied )
+    , ( ( r + 1, c - 1 ), UnOccupied )
+    , ( ( r + 1, c ), UnOccupied )
+    , ( ( r + 1, c + 1 ), UnOccupied )
+    ]
+
+
 getNewBoxDict : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
 getNewBoxDict occupied dict =
     Dict.foldr
@@ -496,14 +586,6 @@ getCount coords =
         0
 
 
-applyGameOfLifeRules : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
-applyGameOfLifeRules boxes =
-    boxes
-        --     -- |> Debug.log "boxes"
-        |> getNeighbourDict
-        |> getNewBoxDict boxes
-
-
 isNeighbour : Coordinates -> Coordinates -> Bool
 isNeighbour ( i, j ) ( m, n ) =
     (i - 1 == m && j - 1 == n)
@@ -514,54 +596,6 @@ isNeighbour ( i, j ) ( m, n ) =
         || (i + 1 == m && j - 1 == n)
         || (i + 1 == m && j == n)
         || (i + 1 == m && j + 1 == n)
-
-
-getNeighbourDict : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
-getNeighbourDict occupied =
-    Dict.foldr (\k _ acc -> Dict.union acc (getNeighbours k)) occupied occupied
-
-
-getNeighbourCoords : Coordinates -> List Coordinates
-getNeighbourCoords ( r, c ) =
-    [ ( r - 1, c - 1 )
-    , ( r - 1, c )
-    , ( r - 1, c + 1 )
-    , ( r, c - 1 )
-    , ( r, c + 1 )
-    , ( r + 1, c - 1 )
-    , ( r + 1, c )
-    , ( r + 1, c + 1 )
-    ]
-
-
-getNeighbours : Coordinates -> Dict Coordinates BoxStatus
-getNeighbours coords =
-    coords
-        |> getNeighbourCoords
-        |> List.map (\n -> ( n, UnOccupied ))
-        |> Dict.fromList
-
-
-
--- get new status of a box based on the count of its neighbours
-
-
-getNewStatus : ( BoxStatus, Int ) -> BoxStatus
-getNewStatus ( prevStatus, n ) =
-    case prevStatus of
-        Occupied ->
-            if n == 2 || n == 3 then
-                Occupied
-
-            else
-                UnOccupied
-
-        UnOccupied ->
-            if n == 3 then
-                Occupied
-
-            else
-                UnOccupied
 
 
 getNewStatus2 : BoxStatus -> Int -> BoxStatus
@@ -582,15 +616,19 @@ getNewStatus2 prevStatus n =
                 UnOccupied
 
 
-toggleBookStatus : BookStatus -> BookStatus
-toggleBookStatus bs =
-    case bs of
-        Open ->
-            Closed
+getNewStatus : ( BoxStatus, Int ) -> BoxStatus
+getNewStatus ( prevStatus, n ) =
+    case prevStatus of
+        Occupied ->
+            if n == 2 || n == 3 then
+                Occupied
 
-        Closed ->
-            Open
+            else
+                UnOccupied
 
+        UnOccupied ->
+            if n == 3 then
+                Occupied
 
-placeholderImage =
-    "https://via.placeholder.com/300"
+            else
+                UnOccupied

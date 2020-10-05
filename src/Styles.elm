@@ -74,20 +74,23 @@ layout =
 sidebarStyles : List (Attribute msg)
 sidebarStyles =
     [ E.height <| E.fill
+    , E.width (E.fill |> E.minimum 100)
     , E.spaceEvenly
     , Border.widthEach { bottom = 0, right = 1, top = 0, left = 0 }
     , Border.color primaryColor
     , E.paddingXY 10 10
+    , E.centerX
+    , E.centerY
     , Border.shadow { offset = ( 2.0, 2.0 ), size = 2.0, blur = 10.0, color = primaryColor }
     ]
 
 
 gridContainer : List (Attribute msg)
 gridContainer =
-    [ E.spaceEvenly
+    [ E.spacing 10
     , E.centerX
     , E.centerY
-    , E.width E.fill
+    , E.width <| E.fillPortion 20
     , E.height E.fill
     ]
 
@@ -138,5 +141,13 @@ patternDisplayStyles : List (Attribute msg)
 patternDisplayStyles =
     [ E.centerY
     , E.centerX
+    , Font.color white
+    ]
+
+
+textStyles : List (Attribute msg)
+textStyles =
+    [ E.centerX
+    , E.centerY
     , Font.color white
     ]
