@@ -20,7 +20,7 @@ import Patterns
         , maybePatternToString
         , patternList
         )
-import Styles exposing (black, bookStyles, container, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarStyles, textStyles, unOccupiedColor)
+import Styles exposing (black, bookStyles, container, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, textStyles, unOccupiedColor)
 import Time
 
 
@@ -294,26 +294,32 @@ sidebar mode speed bookStatus =
             Input.button [ E.centerY ] { onPress = Just ToggleBookStatus, label = bookIcon bookStatus }
     in
     E.column sidebarStyles
-        [ E.column []
-            [ Input.button (sidebarButtonStyles bookStatus)
-                { onPress = Just IncreaseSpeed
-                , label = increaseSpeedIcon
-                }
-            , E.el textStyles <| E.text <| speedToString speed
-            , Input.button (sidebarButtonStyles bookStatus)
-                { onPress = Just DecreaseSpeed
-                , label = decreaseSpeedIcon
-                }
+        [ E.row sidebarRowStyles <|
+            [ E.column sidebarColumnStyles
+                [ Input.button (sidebarButtonStyles bookStatus)
+                    { onPress = Just IncreaseSpeed
+                    , label = increaseSpeedIcon
+                    }
+                , E.el textStyles <| E.text <| speedToString speed
+                , Input.button (sidebarButtonStyles bookStatus)
+                    { onPress = Just DecreaseSpeed
+                    , label = decreaseSpeedIcon
+                    }
+                ]
             ]
-        , toggleBookStatusButton
-        , Input.button (sidebarButtonStyles bookStatus)
-            { onPress = Just <| Reset
-            , label = resetIcon
-            }
-        , Input.button (sidebarButtonStyles bookStatus)
-            { onPress = Just <| ChangeMode mode
-            , label = getModeButtonIcon mode
-            }
+        , E.row sidebarRowStyles <| [ toggleBookStatusButton ]
+        , E.row sidebarRowStyles <|
+            [ E.column sidebarColumnStyles <|
+                [ Input.button (sidebarButtonStyles bookStatus)
+                    { onPress = Just <| Reset
+                    , label = resetIcon
+                    }
+                , Input.button (sidebarButtonStyles bookStatus)
+                    { onPress = Just <| ChangeMode mode
+                    , label = getModeButtonIcon mode
+                    }
+                ]
+            ]
         ]
 
 
@@ -324,7 +330,7 @@ sidebarButtonStyles bookStatus =
             hiddenIcon
 
         Closed ->
-            []
+            sidebarIconStyles
 
 
 decreaseSpeedIcon : Element Msg
@@ -389,16 +395,19 @@ getModeButtonIcon mode =
     case mode of
         Init ->
             FeatherIcons.play
+                |> FeatherIcons.withSize 40
                 |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
         Play ->
             FeatherIcons.pause
+                |> FeatherIcons.withSize 40
                 |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
         Pause ->
             FeatherIcons.play
+                |> FeatherIcons.withSize 40
                 |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
