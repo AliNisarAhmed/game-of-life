@@ -563,26 +563,36 @@ applyGameOfLifeRules boxes =
 
 getNeighbourDict : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
 getNeighbourDict occupied =
-    Dict.foldr (\k _ acc -> Dict.union acc (getNeighbours k)) occupied occupied
+    Dict.toList occupied
+        |> List.concatMap (\( k, _ ) -> getNeighbours k)
+        -- List Coordinates
+        |> List.foldr (\x acc -> Dict.insert x UnOccupied acc) Dict.empty
+        |> Dict.foldr
+            (\k v acc ->
+                if Dict.member k acc then
+                    acc
+
+                else
+                    Dict.insert k v acc
+            )
+            occupied
 
 
-getNeighbours : Coordinates -> Dict Coordinates BoxStatus
+getNeighbours : Coordinates -> List Coordinates
 getNeighbours coords =
-    coords
-        |> getNeighbourCoords
-        |> Dict.fromList
+    getNeighbourCoords coords
 
 
-getNeighbourCoords : Coordinates -> List ( Coordinates, BoxStatus )
+getNeighbourCoords : Coordinates -> List Coordinates
 getNeighbourCoords ( r, c ) =
-    [ ( ( r - 1, c - 1 ), UnOccupied )
-    , ( ( r - 1, c ), UnOccupied )
-    , ( ( r - 1, c + 1 ), UnOccupied )
-    , ( ( r, c - 1 ), UnOccupied )
-    , ( ( r, c + 1 ), UnOccupied )
-    , ( ( r + 1, c - 1 ), UnOccupied )
-    , ( ( r + 1, c ), UnOccupied )
-    , ( ( r + 1, c + 1 ), UnOccupied )
+    [ ( r - 1, c - 1 )
+    , ( r - 1, c )
+    , ( r - 1, c + 1 )
+    , ( r, c - 1 )
+    , ( r, c + 1 )
+    , ( r + 1, c - 1 )
+    , ( r + 1, c )
+    , ( r + 1, c + 1 )
     ]
 
 
