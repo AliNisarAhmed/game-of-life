@@ -102,10 +102,10 @@ sidebarIconStyles =
 
 gridContainer : List (Attribute msg)
 gridContainer =
-    [ E.spacing 10
+    [ E.spacing 0
     , E.centerX
     , E.centerY
-    , E.width <| E.fillPortion 20
+    , E.width <| E.fill
     , E.height E.fill
     ]
 
@@ -156,6 +156,7 @@ patternDisplayStyles : List (Attribute msg)
 patternDisplayStyles =
     [ E.centerY
     , E.centerX
+    , E.alignLeft
     , Font.color white
     ]
 

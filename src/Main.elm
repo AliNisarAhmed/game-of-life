@@ -20,7 +20,7 @@ import Patterns
         , maybePatternToString
         , patternList
         )
-import Styles exposing (black, bookStyles, container, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, textStyles, unOccupiedColor)
+import Styles exposing (black, bookStyles, container, explain, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, textStyles, unOccupiedColor)
 import Time
 
 
@@ -226,7 +226,6 @@ update msg model =
             ( { model
                 | mode = Init
                 , boxes = getPattern ptr model.width model.height
-                , pattern = Just Patterns.defaultPattern
                 , generations = 0
               }
             , Cmd.none
@@ -248,14 +247,26 @@ update msg model =
 
 view : Model -> Html Msg
 view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern, generations } =
+    let
+        gridContainerStyles =
+            gridContainer ++ [ E.inFront <| book bookStatus ]
+
+        uiStyles =
+            [ E.centerX, E.centerY, E.spacingXY 0 10 ]
+    in
     E.layout [] <|
         E.el container <|
             E.row layout
                 [ sidebar mode speed bookStatus
-                , E.column (gridContainer ++ [ E.inFront <| book bookStatus ]) <|
-                    [ E.row patternDisplayStyles <| [ E.text <| ("Current Pattern: " ++ maybePatternToString pattern) ]
-                    , E.row gridLayout <| [ E.el gridStyles <| drawGrid height width cellSize boxes mode ]
-                    , E.row [] <| [ displayGeneration generations ]
+                , E.column gridContainerStyles <|
+                    [ E.column uiStyles
+                        [ E.row patternDisplayStyles <|
+                            [ E.text <| ("Current Pattern: " ++ maybePatternToString pattern) ]
+                        , E.row gridLayout <|
+                            [ E.el gridStyles <| drawGrid height width cellSize boxes mode ]
+                        , E.row [] <|
+                            [ displayGeneration generations ]
+                        ]
                     ]
                 ]
 
@@ -427,7 +438,7 @@ getModeButtonIcon mode =
 displayGeneration : Int -> Element Msg
 displayGeneration generations =
     if generations == 0 then
-        E.row [] <| [ E.none ]
+        E.row textStyles <| [ E.text "" ]
 
     else
         E.row textStyles [ E.text <| "Generations: " ++ String.fromInt generations ]
