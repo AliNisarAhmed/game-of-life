@@ -291,7 +291,7 @@ sidebar : Mode -> Speed -> BookStatus -> Element Msg
 sidebar mode speed bookStatus =
     let
         toggleBookStatusButton =
-            Input.button [ E.centerY ] { onPress = Just ToggleBookStatus, label = bookIcon bookStatus }
+            Input.button [] { onPress = Just ToggleBookStatus, label = bookIcon bookStatus }
     in
     E.column sidebarStyles
         [ E.row sidebarRowStyles <|
@@ -336,6 +336,7 @@ sidebarButtonStyles bookStatus =
 decreaseSpeedIcon : Element Msg
 decreaseSpeedIcon =
     FeatherIcons.chevronsDown
+        |> FeatherIcons.withClass "icon"
         |> FeatherIcons.toHtml iconStyles
         |> E.html
 
@@ -343,6 +344,7 @@ decreaseSpeedIcon =
 increaseSpeedIcon : Element Msg
 increaseSpeedIcon =
     FeatherIcons.chevronsUp
+        |> FeatherIcons.withClass "icon"
         |> FeatherIcons.toHtml iconStyles
         |> E.html
 
@@ -374,11 +376,13 @@ bookIcon bs =
     case bs of
         Closed ->
             FeatherIcons.menu
+                |> FeatherIcons.withClass "icon"
                 |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
         Open ->
             FeatherIcons.x
+                |> FeatherIcons.withClass "icon"
                 |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
@@ -386,6 +390,7 @@ bookIcon bs =
 resetIcon : Element Msg
 resetIcon =
     FeatherIcons.refreshCw
+        |> FeatherIcons.withClass "icon"
         |> FeatherIcons.toHtml iconStyles
         |> E.html
 
@@ -396,18 +401,21 @@ getModeButtonIcon mode =
         Init ->
             FeatherIcons.play
                 |> FeatherIcons.withSize 40
+                |> FeatherIcons.withClass "icon"
                 |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
         Play ->
             FeatherIcons.pause
                 |> FeatherIcons.withSize 40
+                |> FeatherIcons.withClass "icon"
                 |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
         Pause ->
             FeatherIcons.play
                 |> FeatherIcons.withSize 40
+                |> FeatherIcons.withClass "icon"
                 |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
