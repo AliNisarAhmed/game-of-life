@@ -1,6 +1,7 @@
 module Main exposing (..)
 
 import Animator exposing (Animator)
+import Animator.Css as ACss
 import Browser
 import CellGrid as CG
 import CellGrid.Render as CGR
@@ -123,9 +124,7 @@ type alias Model =
     , boxes : Dict Coordinates BoxStatus
     , mode : Mode
     , speed : Speed
-
-    -- , bookStatus : Animator.Timeline BookStatus
-    , bookStatus : BookStatus
+    , bookStatus : Animator.Timeline BookStatus
     , generations : Int
     }
 
@@ -139,22 +138,24 @@ init initialWidth =
       , boxes = Patterns.default initialWidth 70
       , mode = Init
       , speed = Normal
+      , bookStatus = Animator.init Closed
 
-      -- , bookStatus = Animator.init Closed
-      , bookStatus = Closed
+      -- , bookStatus = Closed
       , generations = 0
       }
     , Cmd.none
     )
 
 
+animator : Animator.Animator Model
+animator =
+    Animator.animator
+        |> ACss.watching
+            .bookStatus
+            (\newBookStatus model -> { model | bookStatus = newBookStatus })
 
--- animator : Animator.Animator Model
--- animator =
---     Animator.animator
---         |> Animator.watching
---             .bookStatus
---             (\newBookStatus model -> { model | bookStatus = newBookStatus })
+
+
 ---- UPDATE ----
 
 
@@ -170,6 +171,7 @@ type Msg
     | ChangeHeight Int
     | ToggleBookStatus
     | Reset
+    | AnimatorSubscriptionMsg Time.Posix
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -225,9 +227,7 @@ update msg model =
             ( { model
                 | pattern = Just ptr
                 , boxes = getPattern ptr model.width model.height
-
-                -- , bookStatus = Animator.go Animator.verySlowly Closed model.bookStatus
-                , bookStatus = Closed
+                , bookStatus = Animator.go Animator.verySlowly Closed model.bookStatus
               }
             , Cmd.none
             )
@@ -252,12 +252,17 @@ update msg model =
             ( { model | height = model.height + n }, Cmd.none )
 
         ToggleBookStatus ->
-            ( { model | bookStatus = toggleBookStatus model.bookStatus }, Cmd.none )
+            let
+                newBookStatus =
+                    toggleBookStatus <| Animator.current model.bookStatus
+            in
+            ( { model | bookStatus = Animator.go Animator.slowly newBookStatus model.bookStatus }, Cmd.none )
+
+        AnimatorSubscriptionMsg newTime ->
+            ( Animator.update newTime animator model, Cmd.none )
 
 
 
--- AnimatorSubscriptionMsg newTime ->
---     ( Animator.update newTime animator model, Cmd.none )
 ---- VIEW ----
 
 
@@ -265,16 +270,15 @@ view : Model -> Html Msg
 view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern, generations } =
     let
         currentBookStatus =
-            bookStatus
+            Animator.current bookStatus
 
-        -- Animator.current bookStatus
         book =
             case currentBookStatus of
                 Closed ->
-                    E.behindContent <| displayBook currentBookStatus
+                    E.behindContent <| displayBook bookStatus
 
                 Open ->
-                    E.inFront <| displayBook currentBookStatus
+                    E.inFront <| displayBook bookStatus
 
         gridContainerStyles =
             gridContainer ++ [ book ]
@@ -285,7 +289,7 @@ view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern, generat
     E.layout [] <|
         E.el container <|
             E.row layout
-                [ sidebar mode speed bookStatus
+                [ sidebar mode speed currentBookStatus
                 , E.column gridContainerStyles <|
                     [ E.column uiStyles
                         [ E.row patternDisplayStyles <|
@@ -388,42 +392,21 @@ increaseSpeedIcon =
         |> E.html
 
 
-displayBook : BookStatus -> Element Msg
+displayBook : Animator.Timeline BookStatus -> Element Msg
 displayBook bs =
     bookContainer bs
 
 
-
--- case Animator.current bs of
---     Closed ->
---         E.behindContent E.none
---     Open ->
---         E.inFront <|
---             E.wrappedRow bookStyles
---                 (patternList
---                     |> List.map
---                         (\( name, pattern ) ->
---                             E.column []
---                                 [ E.image [] { src = placeholderImage, description = "pattern" }
---                                 , Input.button []
---                                     { onPress = Just <| ChangePattern pattern
---                                     , label = E.text <| name
---                                     }
---                                 ]
---                         )
---                 )
-
-
-bookContainer : BookStatus -> Element Msg
+bookContainer : Animator.Timeline BookStatus -> Element Msg
 bookContainer bs =
     let
         bookElement =
-            case bs of
+            case Animator.current bs of
                 Closed ->
                     hiddenBook
 
                 Open ->
-                    openBook
+                    openBook bs
     in
     E.html <|
         Html.div
@@ -442,9 +425,18 @@ hiddenBook =
         []
 
 
-openBook : Html Msg
-openBook =
-    Html.div
+openBook : Animator.Timeline BookStatus -> Html Msg
+openBook bs =
+    ACss.div bs
+        [ ACss.opacity <|
+            \state ->
+                case state of
+                    Open ->
+                        Animator.at 1
+
+                    Closed ->
+                        Animator.at 0
+        ]
         [ Attr.style "opacity" "1"
         , Attr.style "position" "absolute"
         , Attr.style "left" "0px"
@@ -561,13 +553,13 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     case model.mode of
         Init ->
-            Sub.none
+            Animator.toSubscription AnimatorSubscriptionMsg model animator
 
-        -- Animator.toSubscription AnimatorSubscriptionMsg model animator
+        -- Sub.none
         Pause ->
-            Sub.none
+            Animator.toSubscription AnimatorSubscriptionMsg model animator
 
-        -- Animator.toSubscription AnimatorSubscriptionMsg model animator
+        -- Sub.none
         Play ->
             Time.every (2000 / (Basics.toFloat <| speedToValue model.speed)) Tick
 
@@ -594,16 +586,6 @@ toggleStatus b =
 
         UnOccupied ->
             Occupied
-
-
-
--- toggleBookStatus : Animator.Timeline BookStatus -> Animator.Timeline BookStatus
--- toggleBookStatus bs =
---     case Animator.current bs of
---         Open ->
---             Animator.go Animator.verySlowly Closed bs
---         Closed ->
---             Animator.go Animator.verySlowly Open bs
 
 
 toggleBookStatus : BookStatus -> BookStatus
