@@ -277,7 +277,7 @@ view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern, generat
                     E.inFront <| displayBook currentBookStatus
 
         gridContainerStyles =
-            gridContainer
+            gridContainer ++ [ book ]
 
         uiStyles =
             [ E.centerX, E.centerY, E.spacingXY 0 10 ]
@@ -430,14 +430,16 @@ bookContainer bs =
             [ Attr.style "position" "relative"
             , Attr.style "width" "100%"
             , Attr.style "height" "100%"
-            , Attr.style "opacity" "0.9"
             ]
             [ bookElement ]
 
 
 hiddenBook : Html Msg
 hiddenBook =
-    Html.div [ Attr.style "opacity" "0" ] patternInfoBoxes
+    Html.div
+        [ Attr.style "display" "none"
+        ]
+        []
 
 
 openBook : Html Msg
@@ -445,22 +447,34 @@ openBook =
     Html.div
         [ Attr.style "opacity" "1"
         , Attr.style "position" "absolute"
-        , Attr.style "left" "0"
-        , Attr.style "top" "0"
+        , Attr.style "left" "0px"
+        , Attr.style "top" "0px"
+        , Attr.style "right" "0px"
+        , Attr.style "bottom" "0px"
+        , Attr.style "display" "flex"
+        , Attr.style "flex-wrap" "wrap"
+        , Attr.style "align-items" "flex-start"
+        , Attr.style "justify-content" "space-between"
+        , Attr.style "background-color" "gray"
+        , Attr.style "padding" "10px"
         ]
-        patternInfoBoxes
+        [ E.layout bookStyles <|
+            E.wrappedRow [ E.spacingXY 50 20, E.centerY ] patternInfoBoxes
+        ]
 
 
-patternInfoBoxes : List (Html Msg)
+patternInfoBoxes : List (Element Msg)
 patternInfoBoxes =
     List.map
         (\( name, pattern ) ->
-            Html.div []
-                [ Html.img
-                    [ Attr.src placeholderImage
-                    , Attr.alt "Pattern Image"
-                    ]
-                    []
+            E.column [ E.spacingXY 10 5 ]
+                [ Input.button []
+                    { onPress = Just (ChangePattern pattern)
+                    , label =
+                        E.image []
+                            { src = placeholderImage, description = "Pattern Image" }
+                    }
+                , E.text name
                 ]
         )
         patternList
