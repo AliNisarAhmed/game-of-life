@@ -139,8 +139,6 @@ init initialWidth =
       , mode = Init
       , speed = Normal
       , bookStatus = Animator.init Closed
-
-      -- , bookStatus = Closed
       , generations = 0
       }
     , Cmd.none
@@ -227,7 +225,7 @@ update msg model =
             ( { model
                 | pattern = Just ptr
                 , boxes = getPattern ptr model.width model.height
-                , bookStatus = Animator.go Animator.verySlowly Closed model.bookStatus
+                , bookStatus = Animator.go Animator.quickly Closed model.bookStatus
               }
             , Cmd.none
             )
@@ -256,7 +254,7 @@ update msg model =
                 newBookStatus =
                     toggleBookStatus <| Animator.current model.bookStatus
             in
-            ( { model | bookStatus = Animator.go Animator.slowly newBookStatus model.bookStatus }, Cmd.none )
+            ( { model | bookStatus = Animator.go Animator.quickly newBookStatus model.bookStatus }, Cmd.none )
 
         AnimatorSubscriptionMsg newTime ->
             ( Animator.update newTime animator model, Cmd.none )
@@ -274,32 +272,36 @@ view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern, generat
 
         book =
             case currentBookStatus of
-                Closed ->
-                    E.behindContent <| displayBook bookStatus
-
                 Open ->
                     E.inFront <| displayBook bookStatus
 
+                Closed ->
+                    E.inFront <| displayBook bookStatus
+
+        -- E.inFront <| displayBook bookStatus
         gridContainerStyles =
             gridContainer ++ [ book ]
 
         uiStyles =
             [ E.centerX, E.centerY, E.spacingXY 0 10 ]
+
+        content =
+            E.column gridContainerStyles <|
+                [ E.column uiStyles
+                    [ E.row patternDisplayStyles <|
+                        [ E.text <| ("Current Pattern: " ++ maybePatternToString pattern) ]
+                    , E.row gridLayout <|
+                        [ E.el gridStyles <| drawGrid height width cellSize boxes mode ]
+                    , E.row [] <|
+                        [ displayGeneration generations ]
+                    ]
+                ]
     in
     E.layout [] <|
         E.el container <|
             E.row layout
                 [ sidebar mode speed currentBookStatus
-                , E.column gridContainerStyles <|
-                    [ E.column uiStyles
-                        [ E.row patternDisplayStyles <|
-                            [ E.text <| ("Current Pattern: " ++ maybePatternToString pattern) ]
-                        , E.row gridLayout <|
-                            [ E.el gridStyles <| drawGrid height width cellSize boxes mode ]
-                        , E.row [] <|
-                            [ displayGeneration generations ]
-                        ]
-                    ]
+                , content
                 ]
 
 
@@ -403,24 +405,37 @@ bookContainer bs =
         bookElement =
             case Animator.current bs of
                 Closed ->
-                    hiddenBook
+                    openBook bs
 
                 Open ->
                     openBook bs
+
+        pointerEvents =
+            case Animator.current bs of
+                Closed ->
+                    Attr.style "pointer-events" "none"
+
+                _ ->
+                    Attr.style "" ""
     in
     E.html <|
-        Html.div
+        ACss.div bs
+            []
             [ Attr.style "position" "relative"
             , Attr.style "width" "100%"
             , Attr.style "height" "100%"
+            , Attr.style "overflow" "hidden"
+            , pointerEvents
+            , Attr.class "bookContainer"
             ]
             [ bookElement ]
 
 
-hiddenBook : Html Msg
-hiddenBook =
+hiddenBook : Animator.Timeline BookStatus -> Html Msg
+hiddenBook bs =
     Html.div
         [ Attr.style "display" "none"
+        , Attr.class "hiddenBook"
         ]
         []
 
@@ -436,21 +451,39 @@ openBook bs =
 
                     Closed ->
                         Animator.at 0
+        , ACss.style "transform"
+            (\f ->
+                if f == 0 then
+                    "translateX(100%);"
+
+                else if f == 1 then
+                    "translateX(0%);"
+
+                else
+                    ""
+            )
+            (\state ->
+                case state of
+                    Open ->
+                        Animator.at 1
+
+                    Closed ->
+                        Animator.at 0
+            )
         ]
-        [ Attr.style "opacity" "1"
-        , Attr.style "position" "absolute"
+        [ Attr.style "position" "absolute"
         , Attr.style "left" "0px"
         , Attr.style "top" "0px"
         , Attr.style "right" "0px"
         , Attr.style "bottom" "0px"
-        , Attr.style "display" "flex"
         , Attr.style "flex-wrap" "wrap"
         , Attr.style "align-items" "flex-start"
         , Attr.style "justify-content" "space-between"
         , Attr.style "background-color" "gray"
-        , Attr.style "padding" "10px"
+        , Attr.style "white-space" "normal"
+        , Attr.class "openBook"
         ]
-        [ E.layout bookStyles <|
+        [ E.layoutWith { options = [ E.noStaticStyleSheet ] } bookStyles <|
             E.wrappedRow [ E.spacingXY 50 20, E.centerY ] patternInfoBoxes
         ]
 
@@ -555,11 +588,9 @@ subscriptions model =
         Init ->
             Animator.toSubscription AnimatorSubscriptionMsg model animator
 
-        -- Sub.none
         Pause ->
             Animator.toSubscription AnimatorSubscriptionMsg model animator
 
-        -- Sub.none
         Play ->
             Time.every (2000 / (Basics.toFloat <| speedToValue model.speed)) Tick
 
