@@ -1,5 +1,7 @@
 module Main exposing (..)
 
+import Animator exposing (Animator)
+import Animator.Css as ACss
 import Browser
 import CellGrid as CG
 import CellGrid.Render as CGR
@@ -9,6 +11,7 @@ import Element as E exposing (Attribute, Element)
 import Element.Input as Input
 import FeatherIcons
 import Html exposing (Html)
+import Html.Attributes as Attr
 import List.Extra exposing (andThen)
 import Maybe.Extra exposing (isJust)
 import Patterns
@@ -20,7 +23,7 @@ import Patterns
         , maybePatternToString
         , patternList
         )
-import Styles exposing (black, bookStyles, container, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarStyles, unOccupiedColor)
+import Styles exposing (black, bookStyles, container, explain, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, textStyles, unOccupiedColor)
 import Time
 
 
@@ -121,7 +124,8 @@ type alias Model =
     , boxes : Dict Coordinates BoxStatus
     , mode : Mode
     , speed : Speed
-    , bookStatus : BookStatus
+    , bookStatus : Animator.Timeline BookStatus
+    , generations : Int
     }
 
 
@@ -134,10 +138,19 @@ init initialWidth =
       , boxes = Patterns.default initialWidth 70
       , mode = Init
       , speed = Normal
-      , bookStatus = Closed
+      , bookStatus = Animator.init Closed
+      , generations = 0
       }
     , Cmd.none
     )
+
+
+animator : Animator.Animator Model
+animator =
+    Animator.animator
+        |> ACss.watching
+            .bookStatus
+            (\newBookStatus model -> { model | bookStatus = newBookStatus })
 
 
 
@@ -156,6 +169,7 @@ type Msg
     | ChangeHeight Int
     | ToggleBookStatus
     | Reset
+    | AnimatorSubscriptionMsg Time.Posix
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -179,7 +193,12 @@ update msg model =
                 ( model, Cmd.none )
 
         Tick _ ->
-            ( { model | boxes = applyGameOfLifeRules model.boxes }, Cmd.none )
+            ( { model
+                | boxes = applyGameOfLifeRules model.boxes
+                , generations = model.generations + 1
+              }
+            , Cmd.none
+            )
 
         IncreaseSpeed ->
             ( { model | speed = increaseSpeed model.speed }, Cmd.none )
@@ -203,7 +222,13 @@ update msg model =
             ( { model | mode = newMode }, Cmd.none )
 
         ChangePattern ptr ->
-            ( { model | pattern = Just ptr, boxes = getPattern ptr model.width model.height, bookStatus = Closed }, Cmd.none )
+            ( { model
+                | pattern = Just ptr
+                , boxes = getPattern ptr model.width model.height
+                , bookStatus = Animator.go Animator.quickly Closed model.bookStatus
+              }
+            , Cmd.none
+            )
 
         Reset ->
             let
@@ -213,7 +238,7 @@ update msg model =
             ( { model
                 | mode = Init
                 , boxes = getPattern ptr model.width model.height
-                , pattern = Just Patterns.defaultPattern
+                , generations = 0
               }
             , Cmd.none
             )
@@ -225,7 +250,14 @@ update msg model =
             ( { model | height = model.height + n }, Cmd.none )
 
         ToggleBookStatus ->
-            ( { model | bookStatus = toggleBookStatus model.bookStatus }, Cmd.none )
+            let
+                newBookStatus =
+                    toggleBookStatus <| Animator.current model.bookStatus
+            in
+            ( { model | bookStatus = Animator.go Animator.quickly newBookStatus model.bookStatus }, Cmd.none )
+
+        AnimatorSubscriptionMsg newTime ->
+            ( Animator.update newTime animator model, Cmd.none )
 
 
 
@@ -233,15 +265,43 @@ update msg model =
 
 
 view : Model -> Html Msg
-view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern } =
+view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern, generations } =
+    let
+        currentBookStatus =
+            Animator.current bookStatus
+
+        book =
+            case currentBookStatus of
+                Open ->
+                    E.inFront <| displayBook bookStatus
+
+                Closed ->
+                    E.inFront <| displayBook bookStatus
+
+        -- E.inFront <| displayBook bookStatus
+        gridContainerStyles =
+            gridContainer ++ [ book ]
+
+        uiStyles =
+            [ E.centerX, E.centerY, E.spacingXY 0 10 ]
+
+        content =
+            E.column gridContainerStyles <|
+                [ E.column uiStyles
+                    [ E.row patternDisplayStyles <|
+                        [ E.text <| ("Current Pattern: " ++ maybePatternToString pattern) ]
+                    , E.row gridLayout <|
+                        [ E.el gridStyles <| drawGrid height width cellSize boxes mode ]
+                    , E.row [] <|
+                        [ displayGeneration generations ]
+                    ]
+                ]
+    in
     E.layout [] <|
         E.el container <|
             E.row layout
-                [ sidebar mode speed bookStatus
-                , E.column (gridContainer ++ [ E.inFront <| book bookStatus ]) <|
-                    [ E.el patternDisplayStyles <| E.text <| ("Current Pattern: " ++ maybePatternToString pattern)
-                    , E.el gridLayout <| E.el gridStyles <| drawGrid height width cellSize boxes mode
-                    ]
+                [ sidebar mode speed currentBookStatus
+                , content
                 ]
 
 
@@ -276,15 +336,35 @@ sidebar : Mode -> Speed -> BookStatus -> Element Msg
 sidebar mode speed bookStatus =
     let
         toggleBookStatusButton =
-            Input.button [ E.centerY ] { onPress = Just ToggleBookStatus, label = bookIcon bookStatus }
+            Input.button [] { onPress = Just ToggleBookStatus, label = bookIcon bookStatus }
     in
     E.column sidebarStyles
-        [ Input.button (sidebarButtonStyles bookStatus) { onPress = Just IncreaseSpeed, label = increaseSpeedIcon }
-        , E.text <| speedToString speed
-        , Input.button (sidebarButtonStyles bookStatus) { onPress = Just DecreaseSpeed, label = decreaseSpeedIcon }
-        , toggleBookStatusButton
-        , Input.button (sidebarButtonStyles bookStatus) { onPress = Just <| Reset, label = resetIcon }
-        , Input.button (sidebarButtonStyles bookStatus) { onPress = Just <| ChangeMode mode, label = getModeButtonIcon mode }
+        [ E.row sidebarRowStyles <|
+            [ E.column sidebarColumnStyles
+                [ Input.button (sidebarButtonStyles bookStatus)
+                    { onPress = Just IncreaseSpeed
+                    , label = increaseSpeedIcon
+                    }
+                , E.el (textStyles ++ sidebarButtonStyles bookStatus) <| E.text <| speedToString speed
+                , Input.button (sidebarButtonStyles bookStatus)
+                    { onPress = Just DecreaseSpeed
+                    , label = decreaseSpeedIcon
+                    }
+                ]
+            ]
+        , E.row sidebarRowStyles <| [ toggleBookStatusButton ]
+        , E.row sidebarRowStyles <|
+            [ E.column sidebarColumnStyles <|
+                [ Input.button (sidebarButtonStyles bookStatus)
+                    { onPress = Just <| Reset
+                    , label = resetIcon
+                    }
+                , Input.button (sidebarButtonStyles bookStatus)
+                    { onPress = Just <| ChangeMode mode
+                    , label = getModeButtonIcon mode
+                    }
+                ]
+            ]
         ]
 
 
@@ -295,12 +375,13 @@ sidebarButtonStyles bookStatus =
             hiddenIcon
 
         Closed ->
-            []
+            sidebarIconStyles
 
 
 decreaseSpeedIcon : Element Msg
 decreaseSpeedIcon =
     FeatherIcons.chevronsDown
+        |> FeatherIcons.withClass "icon"
         |> FeatherIcons.toHtml iconStyles
         |> E.html
 
@@ -308,30 +389,120 @@ decreaseSpeedIcon =
 increaseSpeedIcon : Element Msg
 increaseSpeedIcon =
     FeatherIcons.chevronsUp
+        |> FeatherIcons.withClass "icon"
         |> FeatherIcons.toHtml iconStyles
         |> E.html
 
 
-book : BookStatus -> Element Msg
-book bs =
-    case bs of
-        Closed ->
-            E.none
+displayBook : Animator.Timeline BookStatus -> Element Msg
+displayBook bs =
+    bookContainer bs
 
-        Open ->
-            E.wrappedRow bookStyles
-                (patternList
-                    |> List.map
-                        (\( name, pattern ) ->
-                            E.column []
-                                [ E.image [] { src = placeholderImage, description = "pattern" }
-                                , Input.button []
-                                    { onPress = Just <| ChangePattern pattern
-                                    , label = E.text <| name
-                                    }
-                                ]
-                        )
-                )
+
+bookContainer : Animator.Timeline BookStatus -> Element Msg
+bookContainer bs =
+    let
+        bookElement =
+            case Animator.current bs of
+                Closed ->
+                    openBook bs
+
+                Open ->
+                    openBook bs
+
+        pointerEvents =
+            case Animator.current bs of
+                Closed ->
+                    Attr.style "pointer-events" "none"
+
+                _ ->
+                    Attr.style "" ""
+    in
+    E.html <|
+        ACss.div bs
+            []
+            [ Attr.style "position" "relative"
+            , Attr.style "width" "100%"
+            , Attr.style "height" "100%"
+            , Attr.style "overflow" "hidden"
+            , pointerEvents
+            , Attr.class "bookContainer"
+            ]
+            [ bookElement ]
+
+
+hiddenBook : Animator.Timeline BookStatus -> Html Msg
+hiddenBook bs =
+    Html.div
+        [ Attr.style "display" "none"
+        , Attr.class "hiddenBook"
+        ]
+        []
+
+
+openBook : Animator.Timeline BookStatus -> Html Msg
+openBook bs =
+    ACss.div bs
+        [ ACss.opacity <|
+            \state ->
+                case state of
+                    Open ->
+                        Animator.at 1
+
+                    Closed ->
+                        Animator.at 0
+        , ACss.style "transform"
+            (\f ->
+                if f == 0 then
+                    "translateX(100%);"
+
+                else if f == 1 then
+                    "translateX(0%);"
+
+                else
+                    ""
+            )
+            (\state ->
+                case state of
+                    Open ->
+                        Animator.at 1
+
+                    Closed ->
+                        Animator.at 0
+            )
+        ]
+        [ Attr.style "position" "absolute"
+        , Attr.style "left" "0px"
+        , Attr.style "top" "0px"
+        , Attr.style "right" "0px"
+        , Attr.style "bottom" "0px"
+        , Attr.style "flex-wrap" "wrap"
+        , Attr.style "align-items" "flex-start"
+        , Attr.style "justify-content" "space-between"
+        , Attr.style "background-color" "gray"
+        , Attr.style "white-space" "normal"
+        , Attr.class "openBook"
+        ]
+        [ E.layoutWith { options = [ E.noStaticStyleSheet ] } bookStyles <|
+            E.wrappedRow [ E.spacingXY 50 20, E.centerY ] patternInfoBoxes
+        ]
+
+
+patternInfoBoxes : List (Element Msg)
+patternInfoBoxes =
+    List.map
+        (\( name, pattern ) ->
+            E.column [ E.spacingXY 10 5 ]
+                [ Input.button []
+                    { onPress = Just (ChangePattern pattern)
+                    , label =
+                        E.image []
+                            { src = placeholderImage, description = "Pattern Image" }
+                    }
+                , E.text name
+                ]
+        )
+        patternList
 
 
 bookIcon : BookStatus -> Element Msg
@@ -339,11 +510,13 @@ bookIcon bs =
     case bs of
         Closed ->
             FeatherIcons.menu
+                |> FeatherIcons.withClass "icon"
                 |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
         Open ->
             FeatherIcons.x
+                |> FeatherIcons.withClass "icon"
                 |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
@@ -351,6 +524,7 @@ bookIcon bs =
 resetIcon : Element Msg
 resetIcon =
     FeatherIcons.refreshCw
+        |> FeatherIcons.withClass "icon"
         |> FeatherIcons.toHtml iconStyles
         |> E.html
 
@@ -360,22 +534,42 @@ getModeButtonIcon mode =
     case mode of
         Init ->
             FeatherIcons.play
+                |> FeatherIcons.withSize 40
+                |> FeatherIcons.withClass "icon"
                 |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
         Play ->
             FeatherIcons.pause
+                |> FeatherIcons.withSize 40
+                |> FeatherIcons.withClass "icon"
                 |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
         Pause ->
             FeatherIcons.play
+                |> FeatherIcons.withSize 40
+                |> FeatherIcons.withClass "icon"
                 |> FeatherIcons.toHtml iconStyles
                 |> E.html
 
 
 
 ---- PROGRAM ----
+
+
+displayGeneration : Int -> Element Msg
+displayGeneration generations =
+    if generations == 0 then
+        E.row textStyles <| [ E.text "" ]
+
+    else
+        E.row textStyles [ E.text <| "Generations: " ++ String.fromInt generations ]
+
+
+placeholderImage : String
+placeholderImage =
+    "https://via.placeholder.com/300"
 
 
 main : Program Int Model Msg
@@ -389,16 +583,16 @@ main =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions { mode, speed } =
-    case mode of
+subscriptions model =
+    case model.mode of
         Init ->
-            Sub.none
+            Animator.toSubscription AnimatorSubscriptionMsg model animator
 
         Pause ->
-            Sub.none
+            Animator.toSubscription AnimatorSubscriptionMsg model animator
 
         Play ->
-            Time.every (2000 / (Basics.toFloat <| speedToValue speed)) Tick
+            Time.every (2000 / (Basics.toFloat <| speedToValue model.speed)) Tick
 
 
 
@@ -423,6 +617,16 @@ toggleStatus b =
 
         UnOccupied ->
             Occupied
+
+
+toggleBookStatus : BookStatus -> BookStatus
+toggleBookStatus bs =
+    case bs of
+        Open ->
+            Closed
+
+        Closed ->
+            Open
 
 
 getBoxColor : Dict Coordinates BoxStatus -> Int -> Int -> Color.Color
@@ -468,6 +672,53 @@ updateCell coords dict =
     Dict.update coords updateFunc dict
 
 
+
+---- Game of Life Algorithm ----
+
+
+applyGameOfLifeRules : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
+applyGameOfLifeRules boxes =
+    boxes
+        --     -- |> Debug.log "boxes"
+        |> getNeighbourDict
+        |> getNewBoxDict boxes
+
+
+getNeighbourDict : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
+getNeighbourDict occupied =
+    Dict.toList occupied
+        |> List.concatMap (\( k, _ ) -> getNeighbours k)
+        -- List Coordinates
+        |> List.foldr (\x acc -> Dict.insert x UnOccupied acc) Dict.empty
+        |> Dict.foldr
+            (\k v acc ->
+                if Dict.member k acc then
+                    acc
+
+                else
+                    Dict.insert k v acc
+            )
+            occupied
+
+
+getNeighbours : Coordinates -> List Coordinates
+getNeighbours coords =
+    getNeighbourCoords coords
+
+
+getNeighbourCoords : Coordinates -> List Coordinates
+getNeighbourCoords ( r, c ) =
+    [ ( r - 1, c - 1 )
+    , ( r - 1, c )
+    , ( r - 1, c + 1 )
+    , ( r, c - 1 )
+    , ( r, c + 1 )
+    , ( r + 1, c - 1 )
+    , ( r + 1, c )
+    , ( r + 1, c + 1 )
+    ]
+
+
 getNewBoxDict : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
 getNewBoxDict occupied dict =
     Dict.foldr
@@ -496,14 +747,6 @@ getCount coords =
         0
 
 
-applyGameOfLifeRules : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
-applyGameOfLifeRules boxes =
-    boxes
-        --     -- |> Debug.log "boxes"
-        |> getNeighbourDict
-        |> getNewBoxDict boxes
-
-
 isNeighbour : Coordinates -> Coordinates -> Bool
 isNeighbour ( i, j ) ( m, n ) =
     (i - 1 == m && j - 1 == n)
@@ -514,54 +757,6 @@ isNeighbour ( i, j ) ( m, n ) =
         || (i + 1 == m && j - 1 == n)
         || (i + 1 == m && j == n)
         || (i + 1 == m && j + 1 == n)
-
-
-getNeighbourDict : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
-getNeighbourDict occupied =
-    Dict.foldr (\k _ acc -> Dict.union acc (getNeighbours k)) occupied occupied
-
-
-getNeighbourCoords : Coordinates -> List Coordinates
-getNeighbourCoords ( r, c ) =
-    [ ( r - 1, c - 1 )
-    , ( r - 1, c )
-    , ( r - 1, c + 1 )
-    , ( r, c - 1 )
-    , ( r, c + 1 )
-    , ( r + 1, c - 1 )
-    , ( r + 1, c )
-    , ( r + 1, c + 1 )
-    ]
-
-
-getNeighbours : Coordinates -> Dict Coordinates BoxStatus
-getNeighbours coords =
-    coords
-        |> getNeighbourCoords
-        |> List.map (\n -> ( n, UnOccupied ))
-        |> Dict.fromList
-
-
-
--- get new status of a box based on the count of its neighbours
-
-
-getNewStatus : ( BoxStatus, Int ) -> BoxStatus
-getNewStatus ( prevStatus, n ) =
-    case prevStatus of
-        Occupied ->
-            if n == 2 || n == 3 then
-                Occupied
-
-            else
-                UnOccupied
-
-        UnOccupied ->
-            if n == 3 then
-                Occupied
-
-            else
-                UnOccupied
 
 
 getNewStatus2 : BoxStatus -> Int -> BoxStatus
@@ -582,15 +777,19 @@ getNewStatus2 prevStatus n =
                 UnOccupied
 
 
-toggleBookStatus : BookStatus -> BookStatus
-toggleBookStatus bs =
-    case bs of
-        Open ->
-            Closed
+getNewStatus : ( BoxStatus, Int ) -> BoxStatus
+getNewStatus ( prevStatus, n ) =
+    case prevStatus of
+        Occupied ->
+            if n == 2 || n == 3 then
+                Occupied
 
-        Closed ->
-            Open
+            else
+                UnOccupied
 
+        UnOccupied ->
+            if n == 3 then
+                Occupied
 
-placeholderImage =
-    "https://via.placeholder.com/300"
+            else
+                UnOccupied

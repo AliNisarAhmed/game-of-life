@@ -16,6 +16,7 @@
             "elm-community/list-extra": "8.2.4",
             "elm-community/maybe-extra": "5.2.0",
             "jxxcarlson/elm-cell-grid": "8.0.0",
+            "mdgriffith/elm-animator": "1.1.1",
             "mdgriffith/elm-ui": "1.1.7",
             "rtfeldman/elm-css": "16.0.1"
         },
@@ -31,6 +32,7 @@
             "elm-community/typed-svg": "5.2.0",
             "elm-explorations/webgl": "1.1.1",
             "folkertdev/elm-flate": "2.0.4",
+            "ianmackenzie/elm-units": "2.6.0",
             "justgook/elm-image": "2.0.1",
             "mpizenberg/elm-pointer-events": "4.0.2",
             "rtfeldman/elm-hex": "1.0.0"
@@ -40,8 +42,6 @@
         "direct": {
             "elm-explorations/test": "1.0.0"
         },
-        "indirect": {
-            "ianmackenzie/elm-units": "2.6.0"
-        }
+        "indirect": {}
     }
 }
