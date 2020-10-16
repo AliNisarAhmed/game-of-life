@@ -9,9 +9,9 @@ import Color
 import Css exposing (valid)
 import Element as E exposing (Attribute, Element)
 import Element.Input as Input
-import FeatherIcons
 import Html exposing (Html)
 import Html.Attributes as Attr
+import Icons exposing (..)
 import Patterns
     exposing
         ( Board
@@ -322,8 +322,8 @@ view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generat
                         [ E.text <| ("Current Pattern: " ++ getPatternName pattern) ]
                     , E.row gridLayout <|
                         [ E.el gridStyles <| drawGrid height width cellSize board mode ]
-                    , E.row [] <|
-                        [ displayGeneration generations ]
+                    , E.row [ E.width E.fill ] <|
+                        [ displayGeneration generations, displayTimeTravelControls generations mode ]
                     ]
                 ]
     in
@@ -406,22 +406,6 @@ sidebarButtonStyles bookStatus =
 
         Closed ->
             sidebarIconStyles
-
-
-decreaseSpeedIcon : Element Msg
-decreaseSpeedIcon =
-    FeatherIcons.chevronsDown
-        |> FeatherIcons.withClass "icon"
-        |> FeatherIcons.toHtml iconStyles
-        |> E.html
-
-
-increaseSpeedIcon : Element Msg
-increaseSpeedIcon =
-    FeatherIcons.chevronsUp
-        |> FeatherIcons.withClass "icon"
-        |> FeatherIcons.toHtml iconStyles
-        |> E.html
 
 
 displayBook : Animator.Timeline BookStatus -> Element Msg
@@ -539,53 +523,23 @@ bookIcon : BookStatus -> Element Msg
 bookIcon bs =
     case bs of
         Closed ->
-            FeatherIcons.menu
-                |> FeatherIcons.withClass "icon"
-                |> FeatherIcons.toHtml iconStyles
-                |> E.html
+            menuIcon
 
         Open ->
-            FeatherIcons.x
-                |> FeatherIcons.withClass "icon"
-                |> FeatherIcons.toHtml iconStyles
-                |> E.html
-
-
-resetIcon : Element Msg
-resetIcon =
-    FeatherIcons.refreshCw
-        |> FeatherIcons.withClass "icon"
-        |> FeatherIcons.toHtml iconStyles
-        |> E.html
+            crossIcon
 
 
 getModeButtonIcon : Mode -> Element Msg
 getModeButtonIcon mode =
     case mode of
         Init ->
-            FeatherIcons.play
-                |> FeatherIcons.withSize 40
-                |> FeatherIcons.withClass "icon"
-                |> FeatherIcons.toHtml iconStyles
-                |> E.html
+            playIcon
 
         Play ->
-            FeatherIcons.pause
-                |> FeatherIcons.withSize 40
-                |> FeatherIcons.withClass "icon"
-                |> FeatherIcons.toHtml iconStyles
-                |> E.html
+            pauseIcon
 
         Pause ->
-            FeatherIcons.play
-                |> FeatherIcons.withSize 40
-                |> FeatherIcons.withClass "icon"
-                |> FeatherIcons.toHtml iconStyles
-                |> E.html
-
-
-
----- PROGRAM ----
+            playIcon
 
 
 displayGeneration : Int -> Element Msg
@@ -594,7 +548,23 @@ displayGeneration generations =
         E.row textStyles <| [ E.text "" ]
 
     else
-        E.row textStyles [ E.text <| "Generations: " ++ String.fromInt generations ]
+        E.row (textStyles ++ [ E.alignLeft ]) [ E.text <| "Generations: " ++ String.fromInt generations ]
+
+
+displayTimeTravelControls : Int -> Mode -> Element Msg
+displayTimeTravelControls generations mode =
+    if generations == 0 || mode /= Pause then
+        E.row textStyles <| [ E.text "" ]
+
+    else
+        E.row [ E.alignRight ]
+            [ Input.button [] { onPress = Nothing, label = travelBackwardIcon }
+            , Input.button [] { onPress = Nothing, label = travelForwardIcon }
+            ]
+
+
+
+---- PROGRAM ----
 
 
 placeholderImage : String
