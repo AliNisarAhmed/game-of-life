@@ -1,14 +1,4 @@
-module Patterns exposing
-    ( BoxStatus(..)
-    , Coordinates
-    , Pattern(..)
-    , default
-    , defaultPattern
-    , getPattern
-    , maybePatternToString
-    , patternDict
-    , patternList
-    )
+module Patterns exposing (..)
 
 import Dict exposing (Dict)
 
@@ -50,6 +40,21 @@ oscillator width height =
         , ( ( midHeight, midWidth ), Occupied )
         , ( ( midHeight + 1, midWidth ), Occupied )
         ]
+
+
+oscillator2 : Int -> Int -> List Coordinates
+oscillator2 width height =
+    let
+        midWidth =
+            width // 2
+
+        midHeight =
+            height // 2
+    in
+    [ ( midHeight - 1, midWidth )
+    , ( midHeight, midWidth )
+    , ( midHeight + 1, midWidth )
+    ]
 
 
 toad : PatternFunction
@@ -282,11 +287,11 @@ getPattern ptr =
     Maybe.withDefault default <| Dict.get (patternToString ptr) patternDict
 
 
-maybePatternToString : Maybe Pattern -> String
-maybePatternToString ptr =
-    case ptr of
-        Just p ->
-            patternToString p
 
-        Nothing ->
-            "Custom"
+-- maybePatternToString : Maybe Pattern -> String
+-- maybePatternToString ptr =
+--     case ptr of
+--         Just p ->
+--             patternToString p
+--         Nothing ->
+--             "Custom"

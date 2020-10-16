@@ -6,6 +6,7 @@ import Browser
 import CellGrid as CG
 import CellGrid.Render as CGR
 import Color
+import Css exposing (valid)
 import Dict exposing (Dict)
 import Element as E exposing (Attribute, Element)
 import Element.Input as Input
@@ -20,7 +21,7 @@ import Patterns
         , Coordinates
         , Pattern(..)
         , getPattern
-        , maybePatternToString
+        , oscillator2
         , patternList
         )
 import Styles exposing (black, bookStyles, container, explain, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, textStyles, unOccupiedColor)
@@ -120,8 +121,8 @@ type alias Model =
     { height : Int
     , width : Int
     , cellSize : Float
-    , pattern : Maybe Pattern
-    , boxes : Dict Coordinates BoxStatus
+    , pattern : Maybe (List Coordinates)
+    , boxes : List Coordinates
     , mode : Mode
     , speed : Speed
     , bookStatus : Animator.Timeline BookStatus
@@ -131,11 +132,12 @@ type alias Model =
 
 init : Int -> ( Model, Cmd Msg )
 init initialWidth =
+    -- TODO: Find a way to associate the name of a pattern with its coordinates list
     ( { width = initialWidth
       , height = 70
       , cellSize = 10.0
-      , pattern = Just Patterns.defaultPattern
-      , boxes = Patterns.default initialWidth 70
+      , pattern = Just (oscillator2 initialWidth 70)
+      , boxes = oscillator2 initialWidth 70
       , mode = Init
       , speed = Normal
       , bookStatus = Animator.init Closed
@@ -223,21 +225,17 @@ update msg model =
 
         ChangePattern ptr ->
             ( { model
-                | pattern = Just ptr
-                , boxes = getPattern ptr model.width model.height
+                | pattern = Just (oscillator2 model.width model.height)
+                , boxes = oscillator2 model.width model.height
                 , bookStatus = Animator.go Animator.quickly Closed model.bookStatus
               }
             , Cmd.none
             )
 
         Reset ->
-            let
-                ptr =
-                    Maybe.withDefault Patterns.defaultPattern model.pattern
-            in
             ( { model
                 | mode = Init
-                , boxes = getPattern ptr model.width model.height
+                , boxes = oscillator2 model.width model.height
                 , generations = 0
               }
             , Cmd.none
@@ -289,7 +287,7 @@ view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern, generat
             E.column gridContainerStyles <|
                 [ E.column uiStyles
                     [ E.row patternDisplayStyles <|
-                        [ E.text <| ("Current Pattern: " ++ maybePatternToString pattern) ]
+                        [ E.text <| ("Current Pattern: " ++ "TODO: Display name of pattern") ]
                     , E.row gridLayout <|
                         [ E.el gridStyles <| drawGrid height width cellSize boxes mode ]
                     , E.row [] <|
@@ -305,7 +303,7 @@ view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern, generat
                 ]
 
 
-drawGrid : Int -> Int -> Float -> Dict Coordinates BoxStatus -> Mode -> Element Msg
+drawGrid : Int -> Int -> Float -> List Coordinates -> Mode -> Element Msg
 drawGrid height width cellSize boxes mode =
     let
         dimensions =
@@ -643,108 +641,123 @@ getBoxColor boxes i j =
             toColor UnOccupied
 
 
-getBoxStatus : Dict Coordinates BoxStatus -> Int -> Int -> BoxStatus
+getBoxStatus : List Coordinates -> Int -> Int -> BoxStatus
 getBoxStatus boxes i j =
-    let
-        foundBox =
-            Dict.get ( i, j ) boxes
-    in
-    case foundBox of
-        Just status ->
-            status
+    if List.member ( i, j ) boxes then
+        Occupied
 
-        Nothing ->
-            UnOccupied
+    else
+        UnOccupied
 
 
-updateCell : Coordinates -> Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
-updateCell coords dict =
-    let
-        updateFunc : Maybe BoxStatus -> Maybe BoxStatus
-        updateFunc currentStatus =
-            case currentStatus of
-                Nothing ->
-                    Just Occupied
+updateCell : Coordinates -> List Coordinates -> List Coordinates
+updateCell coords currentlyAlive =
+    if List.member coords currentlyAlive then
+        List.filter (\c -> c /= coords) currentlyAlive
 
-                Just _ ->
-                    Nothing
-    in
-    Dict.update coords updateFunc dict
+    else
+        coords :: currentlyAlive
 
 
 
 ---- Game of Life Algorithm ----
 
 
-applyGameOfLifeRules : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
-applyGameOfLifeRules boxes =
-    boxes
-        --     -- |> Debug.log "boxes"
-        |> getNeighbourDict
-        |> getNewBoxDict boxes
+isAlive : List Coordinates -> Coordinates -> Bool
+isAlive board coord =
+    List.member coord board
 
 
-getNeighbourDict : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
-getNeighbourDict occupied =
-    Dict.toList occupied
-        |> List.concatMap (\( k, _ ) -> getNeighbours k)
-        -- List Coordinates
-        |> List.foldr (\x acc -> Dict.insert x UnOccupied acc) Dict.empty
-        |> Dict.foldr
-            (\k v acc ->
-                if Dict.member k acc then
-                    acc
-
-                else
-                    Dict.insert k v acc
-            )
-            occupied
+isDead : List Coordinates -> Coordinates -> Bool
+isDead board coord =
+    not <| isAlive board coord
 
 
-getNeighbours : Coordinates -> List Coordinates
-getNeighbours coords =
-    getNeighbourCoords coords
-
-
-getNeighbourCoords : Coordinates -> List Coordinates
-getNeighbourCoords ( r, c ) =
-    [ ( r - 1, c - 1 )
-    , ( r - 1, c )
-    , ( r - 1, c + 1 )
-    , ( r, c - 1 )
-    , ( r, c + 1 )
-    , ( r + 1, c - 1 )
-    , ( r + 1, c )
-    , ( r + 1, c + 1 )
+neighFunctions : List (Coordinates -> Coordinates)
+neighFunctions =
+    [ \( r, c ) -> ( r - 1, c - 1 )
+    , \( r, c ) -> ( r - 1, c )
+    , \( r, c ) -> ( r - 1, c + 1 )
+    , \( r, c ) -> ( r, c - 1 )
+    , \( r, c ) -> ( r, c + 1 )
+    , \( r, c ) -> ( r + 1, c - 1 )
+    , \( r, c ) -> ( r + 1, c )
+    , \( r, c ) -> ( r + 1, c + 1 )
     ]
 
 
-getNewBoxDict : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
-getNewBoxDict occupied dict =
-    Dict.foldr
-        (\k v acc ->
-            case getNewStatus2 v << getCount k <| occupied of
-                Occupied ->
-                    Dict.insert k Occupied acc
-
-                _ ->
-                    acc
-        )
-        Dict.empty
-        dict
-
-
-getCount : Coordinates -> Dict Coordinates BoxStatus -> Int
-getCount coords =
-    Dict.foldr
-        (\ok ov acc ->
-            if isNeighbour coords ok then
+countLiveNeighbours : List Coordinates -> Coordinates -> Int
+countLiveNeighbours board coord =
+    List.foldl
+        (\x acc ->
+            if isNeighbour x coord then
                 acc + 1
 
             else
                 acc
         )
         0
+        board
+
+
+survivors : List Coordinates -> List Coordinates
+survivors board =
+    List.foldl
+        (\x acc ->
+            if List.member (Debug.log "countLive: " <| countLiveNeighbours board x) [ 2, 3 ] then
+                x :: acc
+
+            else
+                acc
+        )
+        []
+        board
+
+
+births : List Coordinates -> List Coordinates
+births board =
+    List.foldl
+        (\x result ->
+            let
+                validNeighbs =
+                    List.foldl
+                        (\f acc ->
+                            let
+                                neighbour =
+                                    f x
+                            in
+                            if isDead board neighbour && (not <| List.member neighbour acc) then
+                                if countLiveNeighbours board neighbour == 3 then
+                                    neighbour :: acc
+
+                                else
+                                    acc
+
+                            else
+                                acc
+                        )
+                        []
+                        neighFunctions
+            in
+            validNeighbs
+        )
+        []
+        board
+
+
+removeDuplicates : List Coordinates -> List Coordinates
+removeDuplicates board =
+    case board of
+        [] ->
+            []
+
+        x :: xs ->
+            x :: (removeDuplicates <| List.filter (\c -> c /= x) xs)
+
+
+applyGameOfLifeRules : List Coordinates -> List Coordinates
+applyGameOfLifeRules board =
+    survivors board ++ births board
 
 
 isNeighbour : Coordinates -> Coordinates -> Bool
@@ -757,39 +770,3 @@ isNeighbour ( i, j ) ( m, n ) =
         || (i + 1 == m && j - 1 == n)
         || (i + 1 == m && j == n)
         || (i + 1 == m && j + 1 == n)
-
-
-getNewStatus2 : BoxStatus -> Int -> BoxStatus
-getNewStatus2 prevStatus n =
-    case prevStatus of
-        Occupied ->
-            if n == 2 || n == 3 then
-                Occupied
-
-            else
-                UnOccupied
-
-        UnOccupied ->
-            if n == 3 then
-                Occupied
-
-            else
-                UnOccupied
-
-
-getNewStatus : ( BoxStatus, Int ) -> BoxStatus
-getNewStatus ( prevStatus, n ) =
-    case prevStatus of
-        Occupied ->
-            if n == 2 || n == 3 then
-                Occupied
-
-            else
-                UnOccupied
-
-        UnOccupied ->
-            if n == 3 then
-                Occupied
-
-            else
-                UnOccupied
