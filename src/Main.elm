@@ -7,25 +7,32 @@ import CellGrid as CG
 import CellGrid.Render as CGR
 import Color
 import Css exposing (valid)
-import Dict exposing (Dict)
 import Element as E exposing (Attribute, Element)
 import Element.Input as Input
 import FeatherIcons
 import Html exposing (Html)
 import Html.Attributes as Attr
-import List.Extra exposing (andThen)
-import Maybe.Extra exposing (isJust)
 import Patterns
     exposing
-        ( BoxStatus(..)
+        ( Board
         , Coordinates
         , Pattern(..)
+        , defaultPattern
+        , defaultPatternFunction
         , getPattern
-        , oscillator2
-        , patternList
+        , getPatternName
+        , oscillator
+        , patternKeys
+        , patternToString
+        , patterns
         )
 import Styles exposing (black, bookStyles, container, explain, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, textStyles, unOccupiedColor)
 import Time
+
+
+type BoxStatus
+    = Occupied
+    | UnOccupied
 
 
 type Mode
@@ -121,8 +128,8 @@ type alias Model =
     { height : Int
     , width : Int
     , cellSize : Float
-    , pattern : Maybe (List Coordinates)
-    , boxes : List Coordinates
+    , pattern : Maybe Pattern
+    , board : Board
     , mode : Mode
     , speed : Speed
     , bookStatus : Animator.Timeline BookStatus
@@ -132,12 +139,18 @@ type alias Model =
 
 init : Int -> ( Model, Cmd Msg )
 init initialWidth =
-    -- TODO: Find a way to associate the name of a pattern with its coordinates list
+    let
+        initialHeight =
+            70
+
+        initialBoard =
+            defaultPatternFunction initialWidth initialHeight
+    in
     ( { width = initialWidth
-      , height = 70
+      , height = initialHeight
       , cellSize = 10.0
-      , pattern = Just (oscillator2 initialWidth 70)
-      , boxes = oscillator2 initialWidth 70
+      , pattern = Just defaultPattern
+      , board = initialBoard
       , mode = Init
       , speed = Normal
       , bookStatus = Animator.init Closed
@@ -187,16 +200,16 @@ update msg model =
                         ( cellMsg.cell.row, cellMsg.cell.column )
 
                     updatedDict =
-                        updateCell coordinates model.boxes
+                        updateCell coordinates model.board
                 in
-                ( { model | boxes = updatedDict, pattern = Nothing }, Cmd.none )
+                ( { model | board = updatedDict, pattern = Nothing }, Cmd.none )
 
             else
                 ( model, Cmd.none )
 
         Tick _ ->
             ( { model
-                | boxes = applyGameOfLifeRules model.boxes
+                | board = applyGameOfLifeRules model.board
                 , generations = model.generations + 1
               }
             , Cmd.none
@@ -224,9 +237,13 @@ update msg model =
             ( { model | mode = newMode }, Cmd.none )
 
         ChangePattern ptr ->
+            let
+                newBoard =
+                    getPattern ptr model.width model.height
+            in
             ( { model
-                | pattern = Just (oscillator2 model.width model.height)
-                , boxes = oscillator2 model.width model.height
+                | pattern = Just ptr
+                , board = newBoard
                 , bookStatus = Animator.go Animator.quickly Closed model.bookStatus
               }
             , Cmd.none
@@ -235,7 +252,9 @@ update msg model =
         Reset ->
             ( { model
                 | mode = Init
-                , boxes = oscillator2 model.width model.height
+
+                -- TODO: Store user's custom board so that when they reset when in custom, we display their custom board
+                , board = getPattern (Maybe.withDefault defaultPattern model.pattern) model.width model.height
                 , generations = 0
               }
             , Cmd.none
@@ -263,7 +282,7 @@ update msg model =
 
 
 view : Model -> Html Msg
-view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern, generations } =
+view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generations } =
     let
         currentBookStatus =
             Animator.current bookStatus
@@ -287,9 +306,9 @@ view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern, generat
             E.column gridContainerStyles <|
                 [ E.column uiStyles
                     [ E.row patternDisplayStyles <|
-                        [ E.text <| ("Current Pattern: " ++ "TODO: Display name of pattern") ]
+                        [ E.text <| ("Current Pattern: " ++ getPatternName pattern) ]
                     , E.row gridLayout <|
-                        [ E.el gridStyles <| drawGrid height width cellSize boxes mode ]
+                        [ E.el gridStyles <| drawGrid height width cellSize board mode ]
                     , E.row [] <|
                         [ displayGeneration generations ]
                     ]
@@ -489,7 +508,7 @@ openBook bs =
 patternInfoBoxes : List (Element Msg)
 patternInfoBoxes =
     List.map
-        (\( name, pattern ) ->
+        (\pattern ->
             E.column [ E.spacingXY 10 5 ]
                 [ Input.button []
                     { onPress = Just (ChangePattern pattern)
@@ -497,10 +516,10 @@ patternInfoBoxes =
                         E.image []
                             { src = placeholderImage, description = "Pattern Image" }
                     }
-                , E.text name
+                , E.text <| patternToString pattern
                 ]
         )
-        patternList
+        patternKeys
 
 
 bookIcon : BookStatus -> Element Msg
@@ -607,16 +626,6 @@ toColor box =
             unOccupiedColor
 
 
-toggleStatus : BoxStatus -> BoxStatus
-toggleStatus b =
-    case b of
-        Occupied ->
-            UnOccupied
-
-        UnOccupied ->
-            Occupied
-
-
 toggleBookStatus : BookStatus -> BookStatus
 toggleBookStatus bs =
     case bs of
@@ -625,20 +634,6 @@ toggleBookStatus bs =
 
         Closed ->
             Open
-
-
-getBoxColor : Dict Coordinates BoxStatus -> Int -> Int -> Color.Color
-getBoxColor boxes i j =
-    let
-        foundBox =
-            Dict.get ( i, j ) boxes
-    in
-    case foundBox of
-        Just status ->
-            toColor status
-
-        Nothing ->
-            toColor UnOccupied
 
 
 getBoxStatus : List Coordinates -> Int -> Int -> BoxStatus
