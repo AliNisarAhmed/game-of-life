@@ -28,12 +28,12 @@ type Pattern
 
 defaultPattern : Pattern
 defaultPattern =
-    Oscillator
+    Glider
 
 
 defaultPatternFunction : PatternFunction
 defaultPatternFunction =
-    oscillator
+    glider
 
 
 patterns : Dict Pattern PatternFunction
@@ -244,20 +244,10 @@ patternToString ptr =
             "Talker"
 
         GosperGliderGun ->
-            "GosperGliderGun"
+            "Gosper Glider Gun"
 
         Toad ->
             "Toad"
-
-
-getPatternName : Maybe Pattern -> String
-getPatternName mp =
-    case mp of
-        Just p ->
-            patternToString p
-
-        Nothing ->
-            "Custom"
 
 
 getPattern : Pattern -> PatternFunction

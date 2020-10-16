@@ -20,7 +20,6 @@ import Patterns
         , defaultPattern
         , defaultPatternFunction
         , getPattern
-        , getPatternName
         , oscillator
         , patternKeys
         , patternToString
@@ -56,6 +55,11 @@ type alias Born =
 
 type alias Survive =
     List Int
+
+
+type InitialPattern
+    = BuiltInPattern Pattern
+    | Custom Board
 
 
 
@@ -128,7 +132,7 @@ type alias Model =
     { height : Int
     , width : Int
     , cellSize : Float
-    , pattern : Maybe Pattern
+    , pattern : InitialPattern
     , board : Board
     , mode : Mode
     , speed : Speed
@@ -149,7 +153,7 @@ init initialWidth =
     ( { width = initialWidth
       , height = initialHeight
       , cellSize = 10.0
-      , pattern = Just defaultPattern
+      , pattern = BuiltInPattern defaultPattern
       , board = initialBoard
       , mode = Init
       , speed = Normal
@@ -202,7 +206,7 @@ update msg model =
                     updatedDict =
                         updateCell coordinates model.board
                 in
-                ( { model | board = updatedDict, pattern = Nothing }, Cmd.none )
+                ( { model | board = updatedDict, pattern = Custom updatedDict }, Cmd.none )
 
             else
                 ( model, Cmd.none )
@@ -242,7 +246,7 @@ update msg model =
                     getPattern ptr model.width model.height
             in
             ( { model
-                | pattern = Just ptr
+                | pattern = BuiltInPattern ptr
                 , board = newBoard
                 , bookStatus = Animator.go Animator.quickly Closed model.bookStatus
               }
@@ -250,11 +254,20 @@ update msg model =
             )
 
         Reset ->
+            let
+                newBoard =
+                    case model.pattern of
+                        BuiltInPattern ptr ->
+                            getPattern ptr model.width model.height
+
+                        Custom customPtr ->
+                            customPtr
+            in
             ( { model
                 | mode = Init
 
                 -- TODO: Store user's custom board so that when they reset when in custom, we display their custom board
-                , board = getPattern (Maybe.withDefault defaultPattern model.pattern) model.width model.height
+                , board = newBoard
                 , generations = 0
               }
             , Cmd.none
@@ -322,8 +335,8 @@ view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generat
                 ]
 
 
-drawGrid : Int -> Int -> Float -> List Coordinates -> Mode -> Element Msg
-drawGrid height width cellSize boxes mode =
+drawGrid : Int -> Int -> Float -> Board -> Mode -> Element Msg
+drawGrid height width cellSize board mode =
     let
         dimensions =
             { width = width * Basics.round cellSize
@@ -339,7 +352,7 @@ drawGrid height width cellSize boxes mode =
             }
 
         cellGrid =
-            CG.initialize { rows = height, columns = width } (getBoxStatus boxes)
+            CG.initialize { rows = height, columns = width } (getBoxStatus board)
     in
     E.html <|
         Html.map CellGridMsg <|
@@ -616,6 +629,16 @@ subscriptions model =
 ---- HELPERS ----
 
 
+getPatternName : InitialPattern -> String
+getPatternName ip =
+    case ip of
+        BuiltInPattern ptr ->
+            patternToString ptr
+
+        Custom _ ->
+            "Custom"
+
+
 toColor : BoxStatus -> Color.Color
 toColor box =
     case box of
@@ -636,16 +659,16 @@ toggleBookStatus bs =
             Open
 
 
-getBoxStatus : List Coordinates -> Int -> Int -> BoxStatus
-getBoxStatus boxes i j =
-    if List.member ( i, j ) boxes then
+getBoxStatus : Board -> Int -> Int -> BoxStatus
+getBoxStatus board i j =
+    if List.member ( i, j ) board then
         Occupied
 
     else
         UnOccupied
 
 
-updateCell : Coordinates -> List Coordinates -> List Coordinates
+updateCell : Coordinates -> Board -> Board
 updateCell coords currentlyAlive =
     if List.member coords currentlyAlive then
         List.filter (\c -> c /= coords) currentlyAlive
@@ -658,12 +681,12 @@ updateCell coords currentlyAlive =
 ---- Game of Life Algorithm ----
 
 
-isAlive : List Coordinates -> Coordinates -> Bool
+isAlive : Board -> Coordinates -> Bool
 isAlive board coord =
     List.member coord board
 
 
-isDead : List Coordinates -> Coordinates -> Bool
+isDead : Board -> Coordinates -> Bool
 isDead board coord =
     not <| isAlive board coord
 
@@ -681,7 +704,7 @@ neighFunctions =
     ]
 
 
-countLiveNeighbours : List Coordinates -> Coordinates -> Int
+countLiveNeighbours : Board -> Coordinates -> Int
 countLiveNeighbours board coord =
     List.foldl
         (\x acc ->
@@ -695,11 +718,11 @@ countLiveNeighbours board coord =
         board
 
 
-survivors : List Coordinates -> List Coordinates
+survivors : Board -> Board
 survivors board =
     List.foldl
         (\x acc ->
-            if List.member (Debug.log "countLive: " <| countLiveNeighbours board x) [ 2, 3 ] then
+            if List.member (countLiveNeighbours board x) [ 2, 3 ] then
                 x :: acc
 
             else
@@ -709,24 +732,24 @@ survivors board =
         board
 
 
-births : List Coordinates -> List Coordinates
+births : Board -> Board
 births board =
     List.foldl
         (\x result ->
             let
                 validNeighbs =
-                    List.foldl
+                    List.foldr
                         (\f acc ->
                             let
                                 neighbour =
                                     f x
                             in
-                            if isDead board neighbour && (not <| List.member neighbour acc) then
-                                if countLiveNeighbours board neighbour == 3 then
-                                    neighbour :: acc
-
-                                else
-                                    acc
+                            if
+                                (not <| List.member neighbour board)
+                                    && (not <| List.member neighbour result)
+                                    && (countLiveNeighbours board neighbour == 3)
+                            then
+                                neighbour :: acc
 
                             else
                                 acc
@@ -734,13 +757,13 @@ births board =
                         []
                         neighFunctions
             in
-            validNeighbs
+            validNeighbs ++ result
         )
         []
         board
 
 
-removeDuplicates : List Coordinates -> List Coordinates
+removeDuplicates : Board -> Board
 removeDuplicates board =
     case board of
         [] ->
@@ -750,7 +773,7 @@ removeDuplicates board =
             x :: (removeDuplicates <| List.filter (\c -> c /= x) xs)
 
 
-applyGameOfLifeRules : List Coordinates -> List Coordinates
+applyGameOfLifeRules : Board -> Board
 applyGameOfLifeRules board =
     survivors board ++ births board
 
@@ -765,3 +788,16 @@ isNeighbour ( i, j ) ( m, n ) =
         || (i + 1 == m && j - 1 == n)
         || (i + 1 == m && j == n)
         || (i + 1 == m && j + 1 == n)
+
+
+getNeighbourCoords : Coordinates -> Board
+getNeighbourCoords ( r, c ) =
+    [ ( r - 1, c - 1 )
+    , ( r - 1, c )
+    , ( r - 1, c + 1 )
+    , ( r, c - 1 )
+    , ( r, c + 1 )
+    , ( r + 1, c - 1 )
+    , ( r + 1, c )
+    , ( r + 1, c + 1 )
+    ]
