@@ -19,6 +19,11 @@ black =
     C.black
 
 
+gray : C.Color
+gray =
+    C.gray
+
+
 white : Color
 white =
     E.rgb255 255 255 255
@@ -40,12 +45,12 @@ primaryColor =
 
 occupiedColor : C.Color
 occupiedColor =
-    C.rgb255 221 95 53
+    C.rgb255 0 0 0
 
 
 unOccupiedColor : C.Color
 unOccupiedColor =
-    C.rgb255 98 99 112
+    C.rgb255 255 255 255
 
 
 

@@ -28,12 +28,12 @@ type Pattern
 
 defaultPattern : Pattern
 defaultPattern =
-    Glider
+    Oscillator
 
 
 defaultPatternFunction : PatternFunction
 defaultPatternFunction =
-    glider
+    oscillator
 
 
 patterns : Dict Pattern PatternFunction
@@ -253,3 +253,10 @@ patternToString ptr =
 getPattern : Pattern -> PatternFunction
 getPattern ptr =
     Maybe.withDefault defaultPatternFunction <| Dict.get patternToString ptr patterns
+
+
+images : Dict Pattern String
+images =
+    Dict.fromList patternToString
+        [ ( Oscillator, "./assets/oscillator.PNG" )
+        ]

@@ -25,8 +25,8 @@ import Patterns
         , patternToString
         , patterns
         )
-import Styles exposing (black, bookStyles, container, explain, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, textStyles, unOccupiedColor)
-import Time
+import Styles exposing (black, bookStyles, container, explain, gray, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, textStyles, unOccupiedColor, white)
+import Time exposing (Posix)
 
 
 type BoxStatus
@@ -189,6 +189,7 @@ type Msg
     | ToggleBookStatus
     | Reset
     | AnimatorSubscriptionMsg Time.Posix
+    | ForwardFiveSteps
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -265,8 +266,6 @@ update msg model =
             in
             ( { model
                 | mode = Init
-
-                -- TODO: Store user's custom board so that when they reset when in custom, we display their custom board
                 , board = newBoard
                 , generations = 0
               }
@@ -289,6 +288,9 @@ update msg model =
         AnimatorSubscriptionMsg newTime ->
             ( Animator.update newTime animator model, Cmd.none )
 
+        ForwardFiveSteps ->
+            ( { model | generations = model.generations + 5, board = applyRulesFiveTimes model.board }, Cmd.none )
+
 
 
 ---- VIEW ----
@@ -301,14 +303,8 @@ view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generat
             Animator.current bookStatus
 
         book =
-            case currentBookStatus of
-                Open ->
-                    E.inFront <| displayBook bookStatus
+            E.inFront <| displayBook bookStatus
 
-                Closed ->
-                    E.inFront <| displayBook bookStatus
-
-        -- E.inFront <| displayBook bookStatus
         gridContainerStyles =
             gridContainer ++ [ book ]
 
@@ -348,7 +344,7 @@ drawGrid height width cellSize board mode =
             , cellHeight = cellSize
             , toColor = toColor
             , gridLineWidth = 1
-            , gridLineColor = black
+            , gridLineColor = gray
             }
 
         cellGrid =
@@ -558,8 +554,10 @@ displayTimeTravelControls generations mode =
 
     else
         E.row [ E.alignRight ]
-            [ Input.button [] { onPress = Nothing, label = travelBackwardIcon }
-            , Input.button [] { onPress = Nothing, label = travelForwardIcon }
+            [ Input.button [ E.htmlAttribute (Attr.title "Forward 1 step") ]
+                { onPress = Just (Tick <| Time.millisToPosix 1), label = travelForwardIcon }
+            , Input.button [ E.htmlAttribute (Attr.title "Forward 5 steps") ]
+                { onPress = Just ForwardFiveSteps, label = travelForwardFastIcon }
             ]
 
 
@@ -746,6 +744,11 @@ removeDuplicates board =
 applyGameOfLifeRules : Board -> Board
 applyGameOfLifeRules board =
     survivors board ++ births board
+
+
+applyRulesFiveTimes : Board -> Board
+applyRulesFiveTimes =
+    applyGameOfLifeRules >> applyGameOfLifeRules >> applyGameOfLifeRules >> applyGameOfLifeRules >> applyGameOfLifeRules
 
 
 isNeighbour : Coordinates -> Coordinates -> Bool

@@ -14,6 +14,15 @@ travelForwardIcon =
         |> E.html
 
 
+travelForwardFastIcon : Element msg
+travelForwardFastIcon =
+    FeatherIcons.chevronsRight
+        |> FeatherIcons.withSize 20
+        |> FeatherIcons.withClass "icon"
+        |> FeatherIcons.toHtml iconStyles
+        |> E.html
+
+
 travelBackwardIcon : Element msg
 travelBackwardIcon =
     FeatherIcons.chevronLeft
