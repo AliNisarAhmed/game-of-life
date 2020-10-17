@@ -41,8 +41,6 @@
     "direct": {
       "elm-explorations/test": "1.0.0"
     },
-    "indirect": {
-      "Skinney/murmur3": "2.0.8"
-    }
+    "indirect": {}
   }
 }
