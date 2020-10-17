@@ -6,7 +6,6 @@ import Browser
 import CellGrid as CG
 import CellGrid.Render as CGR
 import Color
-import Css exposing (valid)
 import Element as E exposing (Attribute, Element)
 import Element.Input as Input
 import Html exposing (Html, map)

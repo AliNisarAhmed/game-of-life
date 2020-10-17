@@ -1,48 +1,48 @@
 {
-    "type": "application",
-    "source-directories": [
-        "src"
-    ],
-    "elm-version": "0.19.1",
-    "dependencies": {
-        "direct": {
-            "1602/elm-feather": "2.3.5",
-            "avh4/elm-color": "1.0.0",
-            "edkv/elm-generic-dict": "1.0.0",
-            "elm/browser": "1.0.1",
-            "elm/core": "1.0.2",
-            "elm/html": "1.0.0",
-            "elm/svg": "1.0.1",
-            "elm/time": "1.0.0",
-            "elm-community/list-extra": "8.2.4",
-            "elm-community/maybe-extra": "5.2.0",
-            "jxxcarlson/elm-cell-grid": "8.0.0",
-            "mdgriffith/elm-animator": "1.1.1",
-            "mdgriffith/elm-ui": "1.1.7",
-            "rtfeldman/elm-css": "16.0.1"
-        },
-        "indirect": {
-            "Skinney/murmur3": "2.0.8",
-            "danfishgold/base64-bytes": "1.0.3",
-            "elm/bytes": "1.0.8",
-            "elm/file": "1.0.5",
-            "elm/json": "1.1.2",
-            "elm/random": "1.0.0",
-            "elm/url": "1.0.0",
-            "elm/virtual-dom": "1.0.2",
-            "elm-community/typed-svg": "5.2.0",
-            "elm-explorations/webgl": "1.1.1",
-            "folkertdev/elm-flate": "2.0.4",
-            "ianmackenzie/elm-units": "2.6.0",
-            "justgook/elm-image": "2.0.1",
-            "mpizenberg/elm-pointer-events": "4.0.2",
-            "rtfeldman/elm-hex": "1.0.0"
-        }
+  "type": "application",
+  "source-directories": [
+    "src"
+  ],
+  "elm-version": "0.19.1",
+  "dependencies": {
+    "direct": {
+      "1602/elm-feather": "2.3.5",
+      "avh4/elm-color": "1.0.0",
+      "edkv/elm-generic-dict": "1.0.0",
+      "elm/browser": "1.0.1",
+      "elm/core": "1.0.2",
+      "elm/html": "1.0.0",
+      "elm/svg": "1.0.1",
+      "elm/time": "1.0.0",
+      "elm-community/list-extra": "8.2.4",
+      "elm-community/maybe-extra": "5.2.0",
+      "jxxcarlson/elm-cell-grid": "8.0.0",
+      "mdgriffith/elm-animator": "1.1.1",
+      "mdgriffith/elm-ui": "1.1.7"
     },
-    "test-dependencies": {
-        "direct": {
-            "elm-explorations/test": "1.0.0"
-        },
-        "indirect": {}
+    "indirect": {
+      "danfishgold/base64-bytes": "1.0.3",
+      "elm/bytes": "1.0.8",
+      "elm/file": "1.0.5",
+      "elm/json": "1.1.2",
+      "elm/random": "1.0.0",
+      "elm/url": "1.0.0",
+      "elm/virtual-dom": "1.0.2",
+      "elm-community/typed-svg": "5.2.0",
+      "elm-explorations/webgl": "1.1.1",
+      "folkertdev/elm-flate": "2.0.4",
+      "ianmackenzie/elm-units": "2.6.0",
+      "justgook/elm-image": "2.0.1",
+      "mpizenberg/elm-pointer-events": "4.0.2",
+      "rtfeldman/elm-hex": "1.0.0"
     }
+  },
+  "test-dependencies": {
+    "direct": {
+      "elm-explorations/test": "1.0.0"
+    },
+    "indirect": {
+      "Skinney/murmur3": "2.0.8"
+    }
+  }
 }

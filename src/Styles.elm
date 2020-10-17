@@ -1,7 +1,6 @@
 module Styles exposing (..)
 
 import Color as C
-import Css exposing (..)
 import Element as E exposing (Attribute, Color)
 import Element.Background as Background
 import Element.Border as Border
