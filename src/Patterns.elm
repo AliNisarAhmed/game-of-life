@@ -1,241 +1,18 @@
-module Patterns exposing
-    ( BoxStatus(..)
-    , Coordinates
-    , Pattern(..)
-    , default
-    , defaultPattern
-    , getPattern
-    , maybePatternToString
-    , patternDict
-    , patternList
-    )
+module Patterns exposing (..)
 
-import Dict exposing (Dict)
-
-
-type BoxStatus
-    = Occupied
-    | UnOccupied
-
-
-type alias PatternFunction =
-    Int -> Int -> Dict Coordinates BoxStatus
+import GenericDict as Dict exposing (Dict)
 
 
 type alias Coordinates =
     ( Int, Int )
 
 
-defaultPattern : Pattern
-defaultPattern =
-    Oscillator
+type alias Board =
+    List Coordinates
 
 
-default : PatternFunction
-default =
-    oscillator
-
-
-oscillator : PatternFunction
-oscillator width height =
-    let
-        midWidth =
-            width // 2
-
-        midHeight =
-            height // 2
-    in
-    Dict.fromList
-        [ ( ( midHeight - 1, midWidth ), Occupied )
-        , ( ( midHeight, midWidth ), Occupied )
-        , ( ( midHeight + 1, midWidth ), Occupied )
-        ]
-
-
-toad : PatternFunction
-toad width height =
-    let
-        midHeight =
-            height // 2
-
-        midWidth =
-            width // 2
-    in
-    Dict.fromList
-        [ ( ( midHeight, midWidth ), Occupied )
-        , ( ( midHeight, midWidth + 1 ), Occupied )
-        , ( ( midHeight, midWidth + 2 ), Occupied )
-        , ( ( midHeight + 1, midWidth - 1 ), Occupied )
-        , ( ( midHeight + 1, midWidth ), Occupied )
-        , ( ( midHeight + 1, midWidth + 1 ), Occupied )
-        ]
-
-
-glider : PatternFunction
-glider width height =
-    let
-        midWidth =
-            width // 2
-
-        midHeight =
-            height // 2
-    in
-    Dict.fromList
-        [ ( ( midHeight - 1, midWidth ), Occupied )
-        , ( ( midHeight, midWidth - 2 ), Occupied )
-        , ( ( midHeight, midWidth ), Occupied )
-        , ( ( midHeight + 1, midWidth - 1 ), Occupied )
-        , ( ( midHeight + 1, midWidth ), Occupied )
-        ]
-
-
-dieHard : PatternFunction
-dieHard width height =
-    let
-        midWidth =
-            width // 2
-
-        midHeight =
-            height // 2
-    in
-    Dict.fromList
-        [ ( ( midHeight, midWidth - 3 ), Occupied )
-        , ( ( midHeight, midWidth - 2 ), Occupied )
-        , ( ( midHeight, midWidth + 3 ), Occupied )
-        , ( ( midHeight + 1, midWidth - 2 ), Occupied )
-        , ( ( midHeight + 1, midWidth + 2 ), Occupied )
-        , ( ( midHeight + 1, midWidth + 3 ), Occupied )
-        , ( ( midHeight + 1, midWidth + 4 ), Occupied )
-        ]
-
-
-rPentomino : PatternFunction
-rPentomino width height =
-    let
-        midWidth =
-            width // 2
-
-        midHeight =
-            height // 2
-    in
-    Dict.fromList
-        [ ( ( midHeight - 1, midWidth ), Occupied )
-        , ( ( midHeight - 1, midWidth + 1 ), Occupied )
-        , ( ( midHeight, midWidth - 1 ), Occupied )
-        , ( ( midHeight, midWidth ), Occupied )
-        , ( ( midHeight + 1, midWidth ), Occupied )
-        ]
-
-
-acorn : PatternFunction
-acorn width height =
-    let
-        midWidth =
-            width // 2
-
-        midHeight =
-            height // 2
-    in
-    Dict.fromList
-        [ ( ( midHeight - 2, midWidth + 18 ), Occupied )
-        , ( ( midHeight - 1, midWidth + 20 ), Occupied )
-        , ( ( midHeight, midWidth + 17 ), Occupied )
-        , ( ( midHeight, midWidth + 18 ), Occupied )
-        , ( ( midHeight, midWidth + 21 ), Occupied )
-        , ( ( midHeight, midWidth + 22 ), Occupied )
-        , ( ( midHeight, midWidth + 23 ), Occupied )
-        ]
-
-
-talker : PatternFunction
-talker width height =
-    let
-        midWidth =
-            width // 2
-
-        midHeight =
-            height // 2
-    in
-    Dict.fromList
-        [ ( ( midHeight - 2, midWidth - 2 ), Occupied )
-        , ( ( midHeight - 1, midWidth ), Occupied )
-        , ( ( midHeight, midWidth - 3 ), Occupied )
-        , ( ( midHeight, midWidth - 2 ), Occupied )
-        , ( ( midHeight, midWidth - 1 ), Occupied )
-        , ( ( midHeight, midWidth ), Occupied )
-        , ( ( midHeight, midWidth + 1 ), Occupied )
-        , ( ( midHeight, midWidth + 2 ), Occupied )
-        , ( ( midHeight, midWidth + 3 ), Occupied )
-        ]
-
-
-gosperGliderGun : PatternFunction
-gosperGliderGun width height =
-    Dict.fromList
-        [ ( ( 1, 25 ), Occupied )
-        , ( ( 2, 23 ), Occupied )
-        , ( ( 2, 25 ), Occupied )
-        , ( ( 3, 13 ), Occupied )
-        , ( ( 3, 14 ), Occupied )
-        , ( ( 3, 21 ), Occupied )
-        , ( ( 3, 22 ), Occupied )
-        , ( ( 3, 35 ), Occupied )
-        , ( ( 3, 36 ), Occupied )
-        , ( ( 4, 12 ), Occupied )
-        , ( ( 4, 16 ), Occupied )
-        , ( ( 4, 21 ), Occupied )
-        , ( ( 4, 22 ), Occupied )
-        , ( ( 4, 35 ), Occupied )
-        , ( ( 4, 36 ), Occupied )
-        , ( ( 5, 1 ), Occupied )
-        , ( ( 5, 2 ), Occupied )
-        , ( ( 5, 11 ), Occupied )
-        , ( ( 5, 17 ), Occupied )
-        , ( ( 5, 21 ), Occupied )
-        , ( ( 5, 22 ), Occupied )
-        , ( ( 6, 1 ), Occupied )
-        , ( ( 6, 2 ), Occupied )
-        , ( ( 6, 11 ), Occupied )
-        , ( ( 6, 15 ), Occupied )
-        , ( ( 6, 17 ), Occupied )
-        , ( ( 6, 18 ), Occupied )
-        , ( ( 6, 23 ), Occupied )
-        , ( ( 6, 25 ), Occupied )
-        , ( ( 7, 11 ), Occupied )
-        , ( ( 7, 17 ), Occupied )
-        , ( ( 7, 25 ), Occupied )
-        , ( ( 8, 12 ), Occupied )
-        , ( ( 8, 16 ), Occupied )
-        , ( ( 9, 13 ), Occupied )
-        , ( ( 9, 14 ), Occupied )
-        ]
-
-
-patternList : List ( String, Pattern )
-patternList =
-    [ ( patternToString Oscillator, Oscillator )
-    , ( patternToString Glider, Glider )
-    , ( patternToString DieHard, DieHard )
-    , ( patternToString RPentomino, RPentomino )
-    , ( patternToString Acorn, Acorn )
-    , ( patternToString Toad, Toad )
-    , ( patternToString Talker, Talker )
-    , ( patternToString GosperGliderGun, GosperGliderGun )
-    ]
-
-
-patternDict : Dict String PatternFunction
-patternDict =
-    Dict.fromList
-        [ ( patternToString Oscillator, oscillator )
-        , ( patternToString Glider, glider )
-        , ( patternToString DieHard, dieHard )
-        , ( patternToString RPentomino, rPentomino )
-        , ( patternToString Acorn, acorn )
-        , ( patternToString Toad, toad )
-        , ( patternToString Talker, talker )
-        , ( patternToString GosperGliderGun, gosperGliderGun )
-        ]
+type alias PatternFunction =
+    Int -> Int -> Board
 
 
 type Pattern
@@ -247,6 +24,202 @@ type Pattern
     | RPentomino
     | Toad
     | GosperGliderGun
+
+
+defaultPattern : Pattern
+defaultPattern =
+    Oscillator
+
+
+defaultPatternFunction : PatternFunction
+defaultPatternFunction =
+    oscillator
+
+
+patterns : Dict Pattern PatternFunction
+patterns =
+    Dict.fromList patternToString
+        [ ( Oscillator, oscillator )
+        , ( Toad, toad )
+        , ( Glider, glider )
+        , ( DieHard, dieHard )
+        , ( RPentomino, rPentomino )
+        , ( Acorn, acorn )
+        , ( Talker, talker )
+        , ( GosperGliderGun, gosperGliderGun )
+        ]
+
+
+patternKeys : List Pattern
+patternKeys =
+    Dict.keys patterns
+
+
+oscillator : PatternFunction
+oscillator width height =
+    let
+        midWidth =
+            width // 2
+
+        midHeight =
+            height // 2
+    in
+    [ ( midHeight - 1, midWidth )
+    , ( midHeight, midWidth )
+    , ( midHeight + 1, midWidth )
+    ]
+
+
+toad : PatternFunction
+toad width height =
+    let
+        midHeight =
+            height // 2
+
+        midWidth =
+            width // 2
+    in
+    [ ( midHeight, midWidth )
+    , ( midHeight, midWidth + 1 )
+    , ( midHeight, midWidth + 2 )
+    , ( midHeight + 1, midWidth - 1 )
+    , ( midHeight + 1, midWidth )
+    , ( midHeight + 1, midWidth + 1 )
+    ]
+
+
+glider : PatternFunction
+glider width height =
+    let
+        midWidth =
+            width // 2
+
+        midHeight =
+            height // 2
+    in
+    [ ( midHeight - 1, midWidth )
+    , ( midHeight, midWidth - 2 )
+    , ( midHeight, midWidth )
+    , ( midHeight + 1, midWidth - 1 )
+    , ( midHeight + 1, midWidth )
+    ]
+
+
+dieHard : PatternFunction
+dieHard width height =
+    let
+        midWidth =
+            width // 2
+
+        midHeight =
+            height // 2
+    in
+    [ ( midHeight, midWidth - 3 )
+    , ( midHeight, midWidth - 2 )
+    , ( midHeight, midWidth + 3 )
+    , ( midHeight + 1, midWidth - 2 )
+    , ( midHeight + 1, midWidth + 2 )
+    , ( midHeight + 1, midWidth + 3 )
+    , ( midHeight + 1, midWidth + 4 )
+    ]
+
+
+rPentomino : PatternFunction
+rPentomino width height =
+    let
+        midWidth =
+            width // 2
+
+        midHeight =
+            height // 2
+    in
+    [ ( midHeight - 1, midWidth )
+    , ( midHeight - 1, midWidth + 1 )
+    , ( midHeight, midWidth - 1 )
+    , ( midHeight, midWidth )
+    , ( midHeight + 1, midWidth )
+    ]
+
+
+acorn : PatternFunction
+acorn width height =
+    let
+        midWidth =
+            width // 2
+
+        midHeight =
+            height // 2
+    in
+    [ ( midHeight - 2, midWidth + 18 )
+    , ( midHeight - 1, midWidth + 20 )
+    , ( midHeight, midWidth + 17 )
+    , ( midHeight, midWidth + 18 )
+    , ( midHeight, midWidth + 21 )
+    , ( midHeight, midWidth + 22 )
+    , ( midHeight, midWidth + 23 )
+    ]
+
+
+talker : PatternFunction
+talker width height =
+    let
+        midWidth =
+            width // 2
+
+        midHeight =
+            height // 2
+    in
+    [ ( midHeight - 2, midWidth - 2 )
+    , ( midHeight - 1, midWidth )
+    , ( midHeight, midWidth - 3 )
+    , ( midHeight, midWidth - 2 )
+    , ( midHeight, midWidth - 1 )
+    , ( midHeight, midWidth )
+    , ( midHeight, midWidth + 1 )
+    , ( midHeight, midWidth + 2 )
+    , ( midHeight, midWidth + 3 )
+    ]
+
+
+gosperGliderGun : PatternFunction
+gosperGliderGun width height =
+    [ ( 1, 25 )
+    , ( 2, 23 )
+    , ( 2, 25 )
+    , ( 3, 13 )
+    , ( 3, 14 )
+    , ( 3, 21 )
+    , ( 3, 22 )
+    , ( 3, 35 )
+    , ( 3, 36 )
+    , ( 4, 12 )
+    , ( 4, 16 )
+    , ( 4, 21 )
+    , ( 4, 22 )
+    , ( 4, 35 )
+    , ( 4, 36 )
+    , ( 5, 1 )
+    , ( 5, 2 )
+    , ( 5, 11 )
+    , ( 5, 17 )
+    , ( 5, 21 )
+    , ( 5, 22 )
+    , ( 6, 1 )
+    , ( 6, 2 )
+    , ( 6, 11 )
+    , ( 6, 15 )
+    , ( 6, 17 )
+    , ( 6, 18 )
+    , ( 6, 23 )
+    , ( 6, 25 )
+    , ( 7, 11 )
+    , ( 7, 17 )
+    , ( 7, 25 )
+    , ( 8, 12 )
+    , ( 8, 16 )
+    , ( 9, 13 )
+    , ( 9, 14 )
+    ]
 
 
 patternToString : Pattern -> String
@@ -271,22 +244,12 @@ patternToString ptr =
             "Talker"
 
         GosperGliderGun ->
-            "GosperGliderGun"
+            "Gosper Glider Gun"
 
-        _ ->
+        Toad ->
             "Toad"
 
 
 getPattern : Pattern -> PatternFunction
 getPattern ptr =
-    Maybe.withDefault default <| Dict.get (patternToString ptr) patternDict
-
-
-maybePatternToString : Maybe Pattern -> String
-maybePatternToString ptr =
-    case ptr of
-        Just p ->
-            patternToString p
-
-        Nothing ->
-            "Custom"
+    Maybe.withDefault defaultPatternFunction <| Dict.get patternToString ptr patterns

@@ -6,25 +6,33 @@ import Browser
 import CellGrid as CG
 import CellGrid.Render as CGR
 import Color
-import Dict exposing (Dict)
+import Css exposing (valid)
 import Element as E exposing (Attribute, Element)
 import Element.Input as Input
-import FeatherIcons
-import Html exposing (Html)
+import Html exposing (Html, map)
 import Html.Attributes as Attr
-import List.Extra exposing (andThen)
-import Maybe.Extra exposing (isJust)
+import Icons exposing (..)
+import List.Extra as ListExtra
 import Patterns
     exposing
-        ( BoxStatus(..)
+        ( Board
         , Coordinates
         , Pattern(..)
+        , defaultPattern
+        , defaultPatternFunction
         , getPattern
-        , maybePatternToString
-        , patternList
+        , oscillator
+        , patternKeys
+        , patternToString
+        , patterns
         )
-import Styles exposing (black, bookStyles, container, explain, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, textStyles, unOccupiedColor)
-import Time
+import Styles exposing (black, bookStyles, container, explain, gray, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, textStyles, unOccupiedColor, white)
+import Time exposing (Posix)
+
+
+type BoxStatus
+    = Occupied
+    | UnOccupied
 
 
 type Mode
@@ -48,6 +56,11 @@ type alias Born =
 
 type alias Survive =
     List Int
+
+
+type InitialPattern
+    = BuiltInPattern Pattern
+    | Custom Board
 
 
 
@@ -120,26 +133,43 @@ type alias Model =
     { height : Int
     , width : Int
     , cellSize : Float
-    , pattern : Maybe Pattern
-    , boxes : Dict Coordinates BoxStatus
+    , pattern : InitialPattern
+    , board : Board
     , mode : Mode
     , speed : Speed
     , bookStatus : Animator.Timeline BookStatus
     , generations : Int
+    , images : List Image
     }
 
 
-init : Int -> ( Model, Cmd Msg )
-init initialWidth =
+type alias Image =
+    { name : String, file : String }
+
+
+type alias Flags =
+    { initialWidth : Int, images : List Image }
+
+
+init : Flags -> ( Model, Cmd Msg )
+init { initialWidth, images } =
+    let
+        initialHeight =
+            70
+
+        initialBoard =
+            defaultPatternFunction initialWidth initialHeight
+    in
     ( { width = initialWidth
-      , height = 70
+      , height = initialHeight
       , cellSize = 10.0
-      , pattern = Just Patterns.defaultPattern
-      , boxes = Patterns.default initialWidth 70
+      , pattern = BuiltInPattern defaultPattern
+      , board = initialBoard
       , mode = Init
       , speed = Normal
       , bookStatus = Animator.init Closed
       , generations = 0
+      , images = images
       }
     , Cmd.none
     )
@@ -170,6 +200,7 @@ type Msg
     | ToggleBookStatus
     | Reset
     | AnimatorSubscriptionMsg Time.Posix
+    | ForwardFiveSteps
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -185,16 +216,16 @@ update msg model =
                         ( cellMsg.cell.row, cellMsg.cell.column )
 
                     updatedDict =
-                        updateCell coordinates model.boxes
+                        updateCell coordinates model.board
                 in
-                ( { model | boxes = updatedDict, pattern = Nothing }, Cmd.none )
+                ( { model | board = updatedDict, pattern = Custom updatedDict }, Cmd.none )
 
             else
                 ( model, Cmd.none )
 
         Tick _ ->
             ( { model
-                | boxes = applyGameOfLifeRules model.boxes
+                | board = applyGameOfLifeRules model.board
                 , generations = model.generations + 1
               }
             , Cmd.none
@@ -222,9 +253,13 @@ update msg model =
             ( { model | mode = newMode }, Cmd.none )
 
         ChangePattern ptr ->
+            let
+                newBoard =
+                    getPattern ptr model.width model.height
+            in
             ( { model
-                | pattern = Just ptr
-                , boxes = getPattern ptr model.width model.height
+                | pattern = BuiltInPattern ptr
+                , board = newBoard
                 , bookStatus = Animator.go Animator.quickly Closed model.bookStatus
               }
             , Cmd.none
@@ -232,12 +267,17 @@ update msg model =
 
         Reset ->
             let
-                ptr =
-                    Maybe.withDefault Patterns.defaultPattern model.pattern
+                newBoard =
+                    case model.pattern of
+                        BuiltInPattern ptr ->
+                            getPattern ptr model.width model.height
+
+                        Custom customPtr ->
+                            customPtr
             in
             ( { model
                 | mode = Init
-                , boxes = getPattern ptr model.width model.height
+                , board = newBoard
                 , generations = 0
               }
             , Cmd.none
@@ -259,26 +299,23 @@ update msg model =
         AnimatorSubscriptionMsg newTime ->
             ( Animator.update newTime animator model, Cmd.none )
 
+        ForwardFiveSteps ->
+            ( { model | generations = model.generations + 5, board = applyRulesFiveTimes model.board }, Cmd.none )
+
 
 
 ---- VIEW ----
 
 
 view : Model -> Html Msg
-view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern, generations } =
+view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generations, images } =
     let
         currentBookStatus =
             Animator.current bookStatus
 
         book =
-            case currentBookStatus of
-                Open ->
-                    E.inFront <| displayBook bookStatus
+            E.inFront <| displayBook bookStatus images
 
-                Closed ->
-                    E.inFront <| displayBook bookStatus
-
-        -- E.inFront <| displayBook bookStatus
         gridContainerStyles =
             gridContainer ++ [ book ]
 
@@ -289,11 +326,11 @@ view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern, generat
             E.column gridContainerStyles <|
                 [ E.column uiStyles
                     [ E.row patternDisplayStyles <|
-                        [ E.text <| ("Current Pattern: " ++ maybePatternToString pattern) ]
+                        [ E.text <| ("Current Pattern: " ++ getPatternName pattern) ]
                     , E.row gridLayout <|
-                        [ E.el gridStyles <| drawGrid height width cellSize boxes mode ]
-                    , E.row [] <|
-                        [ displayGeneration generations ]
+                        [ E.el gridStyles <| drawGrid height width cellSize board mode ]
+                    , E.row [ E.width E.fill ] <|
+                        [ displayGeneration generations, displayTimeTravelControls generations mode ]
                     ]
                 ]
     in
@@ -305,8 +342,8 @@ view { height, width, cellSize, mode, boxes, speed, bookStatus, pattern, generat
                 ]
 
 
-drawGrid : Int -> Int -> Float -> Dict Coordinates BoxStatus -> Mode -> Element Msg
-drawGrid height width cellSize boxes mode =
+drawGrid : Int -> Int -> Float -> Board -> Mode -> Element Msg
+drawGrid height width cellSize board mode =
     let
         dimensions =
             { width = width * Basics.round cellSize
@@ -318,11 +355,11 @@ drawGrid height width cellSize boxes mode =
             , cellHeight = cellSize
             , toColor = toColor
             , gridLineWidth = 1
-            , gridLineColor = black
+            , gridLineColor = gray
             }
 
         cellGrid =
-            CG.initialize { rows = height, columns = width } (getBoxStatus boxes)
+            CG.initialize { rows = height, columns = width } (getBoxStatus board)
     in
     E.html <|
         Html.map CellGridMsg <|
@@ -378,37 +415,16 @@ sidebarButtonStyles bookStatus =
             sidebarIconStyles
 
 
-decreaseSpeedIcon : Element Msg
-decreaseSpeedIcon =
-    FeatherIcons.chevronsDown
-        |> FeatherIcons.withClass "icon"
-        |> FeatherIcons.toHtml iconStyles
-        |> E.html
+displayBook : Animator.Timeline BookStatus -> List Image -> Element Msg
+displayBook bs images =
+    bookContainer bs images
 
 
-increaseSpeedIcon : Element Msg
-increaseSpeedIcon =
-    FeatherIcons.chevronsUp
-        |> FeatherIcons.withClass "icon"
-        |> FeatherIcons.toHtml iconStyles
-        |> E.html
-
-
-displayBook : Animator.Timeline BookStatus -> Element Msg
-displayBook bs =
-    bookContainer bs
-
-
-bookContainer : Animator.Timeline BookStatus -> Element Msg
-bookContainer bs =
+bookContainer : Animator.Timeline BookStatus -> List Image -> Element Msg
+bookContainer bs images =
     let
         bookElement =
-            case Animator.current bs of
-                Closed ->
-                    openBook bs
-
-                Open ->
-                    openBook bs
+            openBook bs images
 
         pointerEvents =
             case Animator.current bs of
@@ -440,8 +456,8 @@ hiddenBook bs =
         []
 
 
-openBook : Animator.Timeline BookStatus -> Html Msg
-openBook bs =
+openBook : Animator.Timeline BookStatus -> List Image -> Html Msg
+openBook bs images =
     ACss.div bs
         [ ACss.opacity <|
             \state ->
@@ -484,78 +500,63 @@ openBook bs =
         , Attr.class "openBook"
         ]
         [ E.layoutWith { options = [ E.noStaticStyleSheet ] } bookStyles <|
-            E.wrappedRow [ E.spacingXY 50 20, E.centerY ] patternInfoBoxes
+            E.wrappedRow [ E.spacingXY 50 20, E.centerY ] <|
+                patternInfoBoxes images
         ]
 
 
-patternInfoBoxes : List (Element Msg)
-patternInfoBoxes =
+patternInfoBoxes : List Image -> List (Element Msg)
+patternInfoBoxes images =
     List.map
-        (\( name, pattern ) ->
+        (\pattern ->
             E.column [ E.spacingXY 10 5 ]
-                [ Input.button []
+                [ Input.button [ E.width <| E.px 200, E.height <| E.px 200 ]
                     { onPress = Just (ChangePattern pattern)
                     , label =
-                        E.image []
-                            { src = placeholderImage, description = "Pattern Image" }
+                        E.image [ E.width <| E.px 200, E.height <| E.px 200 ]
+                            { src = Maybe.withDefault placeholderImage <| findPatternImageFile images pattern
+                            , description = "Pattern Image"
+                            }
                     }
-                , E.text name
+                , E.text <| patternToString pattern
                 ]
         )
-        patternList
+        patternKeys
+
+
+findPatternImageFile : List Image -> Pattern -> Maybe String
+findPatternImageFile images ptr =
+    let
+        patternName =
+            patternToString ptr
+
+        maybeImage =
+            Maybe.map .file <| ListExtra.find (\{ name } -> name == patternName) images
+    in
+    maybeImage
 
 
 bookIcon : BookStatus -> Element Msg
 bookIcon bs =
     case bs of
         Closed ->
-            FeatherIcons.menu
-                |> FeatherIcons.withClass "icon"
-                |> FeatherIcons.toHtml iconStyles
-                |> E.html
+            menuIcon
 
         Open ->
-            FeatherIcons.x
-                |> FeatherIcons.withClass "icon"
-                |> FeatherIcons.toHtml iconStyles
-                |> E.html
-
-
-resetIcon : Element Msg
-resetIcon =
-    FeatherIcons.refreshCw
-        |> FeatherIcons.withClass "icon"
-        |> FeatherIcons.toHtml iconStyles
-        |> E.html
+            crossIcon
 
 
 getModeButtonIcon : Mode -> Element Msg
 getModeButtonIcon mode =
     case mode of
         Init ->
-            FeatherIcons.play
-                |> FeatherIcons.withSize 40
-                |> FeatherIcons.withClass "icon"
-                |> FeatherIcons.toHtml iconStyles
-                |> E.html
+            playIcon
 
         Play ->
-            FeatherIcons.pause
-                |> FeatherIcons.withSize 40
-                |> FeatherIcons.withClass "icon"
-                |> FeatherIcons.toHtml iconStyles
-                |> E.html
+            pauseIcon
 
         Pause ->
-            FeatherIcons.play
-                |> FeatherIcons.withSize 40
-                |> FeatherIcons.withClass "icon"
-                |> FeatherIcons.toHtml iconStyles
-                |> E.html
-
-
-
----- PROGRAM ----
+            playIcon
 
 
 displayGeneration : Int -> Element Msg
@@ -564,7 +565,25 @@ displayGeneration generations =
         E.row textStyles <| [ E.text "" ]
 
     else
-        E.row textStyles [ E.text <| "Generations: " ++ String.fromInt generations ]
+        E.row (textStyles ++ [ E.alignLeft ]) [ E.text <| "Generations: " ++ String.fromInt generations ]
+
+
+displayTimeTravelControls : Int -> Mode -> Element Msg
+displayTimeTravelControls generations mode =
+    if generations == 0 || mode /= Pause then
+        E.row textStyles <| [ E.text "" ]
+
+    else
+        E.row [ E.alignRight ]
+            [ Input.button [ E.htmlAttribute (Attr.title "Forward 1 step") ]
+                { onPress = Just (Tick <| Time.millisToPosix 1), label = travelForwardIcon }
+            , Input.button [ E.htmlAttribute (Attr.title "Forward 5 steps") ]
+                { onPress = Just ForwardFiveSteps, label = travelForwardFastIcon }
+            ]
+
+
+
+---- PROGRAM ----
 
 
 placeholderImage : String
@@ -572,7 +591,7 @@ placeholderImage =
     "https://via.placeholder.com/300"
 
 
-main : Program Int Model Msg
+main : Program Flags Model Msg
 main =
     Browser.element
         { view = view
@@ -599,6 +618,16 @@ subscriptions model =
 ---- HELPERS ----
 
 
+getPatternName : InitialPattern -> String
+getPatternName ip =
+    case ip of
+        BuiltInPattern ptr ->
+            patternToString ptr
+
+        Custom _ ->
+            "Custom"
+
+
 toColor : BoxStatus -> Color.Color
 toColor box =
     case box of
@@ -607,16 +636,6 @@ toColor box =
 
         _ ->
             unOccupiedColor
-
-
-toggleStatus : BoxStatus -> BoxStatus
-toggleStatus b =
-    case b of
-        Occupied ->
-            UnOccupied
-
-        UnOccupied ->
-            Occupied
 
 
 toggleBookStatus : BookStatus -> BookStatus
@@ -629,122 +648,128 @@ toggleBookStatus bs =
             Open
 
 
-getBoxColor : Dict Coordinates BoxStatus -> Int -> Int -> Color.Color
-getBoxColor boxes i j =
-    let
-        foundBox =
-            Dict.get ( i, j ) boxes
-    in
-    case foundBox of
-        Just status ->
-            toColor status
+getBoxStatus : Board -> Int -> Int -> BoxStatus
+getBoxStatus board i j =
+    if List.member ( i, j ) board then
+        Occupied
 
-        Nothing ->
-            toColor UnOccupied
+    else
+        UnOccupied
 
 
-getBoxStatus : Dict Coordinates BoxStatus -> Int -> Int -> BoxStatus
-getBoxStatus boxes i j =
-    let
-        foundBox =
-            Dict.get ( i, j ) boxes
-    in
-    case foundBox of
-        Just status ->
-            status
+updateCell : Coordinates -> Board -> Board
+updateCell coords currentlyAlive =
+    if List.member coords currentlyAlive then
+        List.filter (\c -> c /= coords) currentlyAlive
 
-        Nothing ->
-            UnOccupied
-
-
-updateCell : Coordinates -> Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
-updateCell coords dict =
-    let
-        updateFunc : Maybe BoxStatus -> Maybe BoxStatus
-        updateFunc currentStatus =
-            case currentStatus of
-                Nothing ->
-                    Just Occupied
-
-                Just _ ->
-                    Nothing
-    in
-    Dict.update coords updateFunc dict
+    else
+        coords :: currentlyAlive
 
 
 
 ---- Game of Life Algorithm ----
 
 
-applyGameOfLifeRules : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
-applyGameOfLifeRules boxes =
-    boxes
-        --     -- |> Debug.log "boxes"
-        |> getNeighbourDict
-        |> getNewBoxDict boxes
+isAlive : Board -> Coordinates -> Bool
+isAlive board coord =
+    List.member coord board
 
 
-getNeighbourDict : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
-getNeighbourDict occupied =
-    Dict.toList occupied
-        |> List.concatMap (\( k, _ ) -> getNeighbours k)
-        -- List Coordinates
-        |> List.foldr (\x acc -> Dict.insert x UnOccupied acc) Dict.empty
-        |> Dict.foldr
-            (\k v acc ->
-                if Dict.member k acc then
-                    acc
-
-                else
-                    Dict.insert k v acc
-            )
-            occupied
+isDead : Board -> Coordinates -> Bool
+isDead board coord =
+    not <| isAlive board coord
 
 
-getNeighbours : Coordinates -> List Coordinates
-getNeighbours coords =
-    getNeighbourCoords coords
-
-
-getNeighbourCoords : Coordinates -> List Coordinates
-getNeighbourCoords ( r, c ) =
-    [ ( r - 1, c - 1 )
-    , ( r - 1, c )
-    , ( r - 1, c + 1 )
-    , ( r, c - 1 )
-    , ( r, c + 1 )
-    , ( r + 1, c - 1 )
-    , ( r + 1, c )
-    , ( r + 1, c + 1 )
+neighFunctions : List (Coordinates -> Coordinates)
+neighFunctions =
+    [ \( r, c ) -> ( r - 1, c - 1 )
+    , \( r, c ) -> ( r - 1, c )
+    , \( r, c ) -> ( r - 1, c + 1 )
+    , \( r, c ) -> ( r, c - 1 )
+    , \( r, c ) -> ( r, c + 1 )
+    , \( r, c ) -> ( r + 1, c - 1 )
+    , \( r, c ) -> ( r + 1, c )
+    , \( r, c ) -> ( r + 1, c + 1 )
     ]
 
 
-getNewBoxDict : Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus -> Dict Coordinates BoxStatus
-getNewBoxDict occupied dict =
-    Dict.foldr
-        (\k v acc ->
-            case getNewStatus2 v << getCount k <| occupied of
-                Occupied ->
-                    Dict.insert k Occupied acc
-
-                _ ->
-                    acc
-        )
-        Dict.empty
-        dict
-
-
-getCount : Coordinates -> Dict Coordinates BoxStatus -> Int
-getCount coords =
-    Dict.foldr
-        (\ok ov acc ->
-            if isNeighbour coords ok then
+countLiveNeighbours : Board -> Coordinates -> Int
+countLiveNeighbours board coord =
+    List.foldl
+        (\x acc ->
+            if isNeighbour x coord then
                 acc + 1
 
             else
                 acc
         )
         0
+        board
+
+
+survivors : Board -> Board
+survivors board =
+    List.foldl
+        (\x acc ->
+            if List.member (countLiveNeighbours board x) [ 2, 3 ] then
+                x :: acc
+
+            else
+                acc
+        )
+        []
+        board
+
+
+births : Board -> Board
+births board =
+    List.foldl
+        (\x result ->
+            let
+                validNeighbs =
+                    List.foldr
+                        (\f acc ->
+                            let
+                                neighbour =
+                                    f x
+                            in
+                            if
+                                (not <| List.member neighbour board)
+                                    && (not <| List.member neighbour result)
+                                    && (countLiveNeighbours board neighbour == 3)
+                            then
+                                neighbour :: acc
+
+                            else
+                                acc
+                        )
+                        []
+                        neighFunctions
+            in
+            validNeighbs ++ result
+        )
+        []
+        board
+
+
+removeDuplicates : Board -> Board
+removeDuplicates board =
+    case board of
+        [] ->
+            []
+
+        x :: xs ->
+            x :: (removeDuplicates <| List.filter (\c -> c /= x) xs)
+
+
+applyGameOfLifeRules : Board -> Board
+applyGameOfLifeRules board =
+    survivors board ++ births board
+
+
+applyRulesFiveTimes : Board -> Board
+applyRulesFiveTimes =
+    applyGameOfLifeRules >> applyGameOfLifeRules >> applyGameOfLifeRules >> applyGameOfLifeRules >> applyGameOfLifeRules
 
 
 isNeighbour : Coordinates -> Coordinates -> Bool
@@ -759,37 +784,14 @@ isNeighbour ( i, j ) ( m, n ) =
         || (i + 1 == m && j + 1 == n)
 
 
-getNewStatus2 : BoxStatus -> Int -> BoxStatus
-getNewStatus2 prevStatus n =
-    case prevStatus of
-        Occupied ->
-            if n == 2 || n == 3 then
-                Occupied
-
-            else
-                UnOccupied
-
-        UnOccupied ->
-            if n == 3 then
-                Occupied
-
-            else
-                UnOccupied
-
-
-getNewStatus : ( BoxStatus, Int ) -> BoxStatus
-getNewStatus ( prevStatus, n ) =
-    case prevStatus of
-        Occupied ->
-            if n == 2 || n == 3 then
-                Occupied
-
-            else
-                UnOccupied
-
-        UnOccupied ->
-            if n == 3 then
-                Occupied
-
-            else
-                UnOccupied
+getNeighbourCoords : Coordinates -> Board
+getNeighbourCoords ( r, c ) =
+    [ ( r - 1, c - 1 )
+    , ( r - 1, c )
+    , ( r - 1, c + 1 )
+    , ( r, c - 1 )
+    , ( r, c + 1 )
+    , ( r + 1, c - 1 )
+    , ( r + 1, c )
+    , ( r + 1, c + 1 )
+    ]
