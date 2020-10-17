@@ -3,7 +3,7 @@ import { Elm } from './Main.elm';
 import * as serviceWorker from './serviceWorker';
 import oscillatorImage from './assets/oscillator.png';
 import acorn from './assets/acorn.png';
-import dieHard from './assets/dieHard.png';
+import dieHard from './assets/diehard.png';
 import glider from './assets/glider.png';
 import gosper from './assets/gosper.png';
 import rpentomino from './assets/rpentomino.png';
