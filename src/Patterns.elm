@@ -253,10 +253,3 @@ patternToString ptr =
 getPattern : Pattern -> PatternFunction
 getPattern ptr =
     Maybe.withDefault defaultPatternFunction <| Dict.get patternToString ptr patterns
-
-
-images : Dict Pattern String
-images =
-    Dict.fromList patternToString
-        [ ( Oscillator, "./assets/oscillator.PNG" )
-        ]

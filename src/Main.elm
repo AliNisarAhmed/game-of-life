@@ -9,9 +9,10 @@ import Color
 import Css exposing (valid)
 import Element as E exposing (Attribute, Element)
 import Element.Input as Input
-import Html exposing (Html)
+import Html exposing (Html, map)
 import Html.Attributes as Attr
 import Icons exposing (..)
+import List.Extra as ListExtra
 import Patterns
     exposing
         ( Board
@@ -138,11 +139,20 @@ type alias Model =
     , speed : Speed
     , bookStatus : Animator.Timeline BookStatus
     , generations : Int
+    , images : List Image
     }
 
 
-init : Int -> ( Model, Cmd Msg )
-init initialWidth =
+type alias Image =
+    { name : String, file : String }
+
+
+type alias Flags =
+    { initialWidth : Int, images : List Image }
+
+
+init : Flags -> ( Model, Cmd Msg )
+init { initialWidth, images } =
     let
         initialHeight =
             70
@@ -159,6 +169,7 @@ init initialWidth =
       , speed = Normal
       , bookStatus = Animator.init Closed
       , generations = 0
+      , images = images
       }
     , Cmd.none
     )
@@ -297,13 +308,13 @@ update msg model =
 
 
 view : Model -> Html Msg
-view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generations } =
+view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generations, images } =
     let
         currentBookStatus =
             Animator.current bookStatus
 
         book =
-            E.inFront <| displayBook bookStatus
+            E.inFront <| displayBook bookStatus images
 
         gridContainerStyles =
             gridContainer ++ [ book ]
@@ -404,21 +415,16 @@ sidebarButtonStyles bookStatus =
             sidebarIconStyles
 
 
-displayBook : Animator.Timeline BookStatus -> Element Msg
-displayBook bs =
-    bookContainer bs
+displayBook : Animator.Timeline BookStatus -> List Image -> Element Msg
+displayBook bs images =
+    bookContainer bs images
 
 
-bookContainer : Animator.Timeline BookStatus -> Element Msg
-bookContainer bs =
+bookContainer : Animator.Timeline BookStatus -> List Image -> Element Msg
+bookContainer bs images =
     let
         bookElement =
-            case Animator.current bs of
-                Closed ->
-                    openBook bs
-
-                Open ->
-                    openBook bs
+            openBook bs images
 
         pointerEvents =
             case Animator.current bs of
@@ -450,8 +456,8 @@ hiddenBook bs =
         []
 
 
-openBook : Animator.Timeline BookStatus -> Html Msg
-openBook bs =
+openBook : Animator.Timeline BookStatus -> List Image -> Html Msg
+openBook bs images =
     ACss.div bs
         [ ACss.opacity <|
             \state ->
@@ -494,25 +500,40 @@ openBook bs =
         , Attr.class "openBook"
         ]
         [ E.layoutWith { options = [ E.noStaticStyleSheet ] } bookStyles <|
-            E.wrappedRow [ E.spacingXY 50 20, E.centerY ] patternInfoBoxes
+            E.wrappedRow [ E.spacingXY 50 20, E.centerY ] <|
+                patternInfoBoxes images
         ]
 
 
-patternInfoBoxes : List (Element Msg)
-patternInfoBoxes =
+patternInfoBoxes : List Image -> List (Element Msg)
+patternInfoBoxes images =
     List.map
         (\pattern ->
             E.column [ E.spacingXY 10 5 ]
-                [ Input.button []
+                [ Input.button [ E.width <| E.px 200, E.height <| E.px 200 ]
                     { onPress = Just (ChangePattern pattern)
                     , label =
-                        E.image []
-                            { src = placeholderImage, description = "Pattern Image" }
+                        E.image [ E.width <| E.px 200, E.height <| E.px 200 ]
+                            { src = Maybe.withDefault placeholderImage <| findPatternImageFile images pattern
+                            , description = "Pattern Image"
+                            }
                     }
                 , E.text <| patternToString pattern
                 ]
         )
         patternKeys
+
+
+findPatternImageFile : List Image -> Pattern -> Maybe String
+findPatternImageFile images ptr =
+    let
+        patternName =
+            patternToString ptr
+
+        maybeImage =
+            Maybe.map .file <| ListExtra.find (\{ name } -> name == patternName) images
+    in
+    maybeImage
 
 
 bookIcon : BookStatus -> Element Msg
@@ -570,7 +591,7 @@ placeholderImage =
     "https://via.placeholder.com/300"
 
 
-main : Program Int Model Msg
+main : Program Flags Model Msg
 main =
     Browser.element
         { view = view

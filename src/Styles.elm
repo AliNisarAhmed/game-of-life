@@ -50,7 +50,7 @@ occupiedColor =
 
 unOccupiedColor : C.Color
 unOccupiedColor =
-    C.rgb255 255 255 255
+    C.rgb255 245 245 245
 
 
 
