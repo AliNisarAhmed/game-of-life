@@ -54,10 +54,8 @@ unOccupiedColor =
 
 
 ----
-
-
-explain =
-    E.explain <| Debug.todo
+-- explain =
+--     E.explain <| Debug.todo
 
 
 container : List (Attribute msg)
