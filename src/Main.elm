@@ -25,7 +25,7 @@ import Patterns
         , patternToString
         , patterns
         )
-import Styles exposing (black, bookStyles, container, explain, gray, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, textStyles, unOccupiedColor, white)
+import Styles exposing (black, bookStyles, container, gray, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, textStyles, unOccupiedColor, white)
 import Time exposing (Posix)
 
 
