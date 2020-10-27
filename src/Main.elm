@@ -25,7 +25,7 @@ import Patterns
         , patternToString
         , patterns
         )
-import Styles exposing (black, bookStyles, container, gray, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, textStyles, unOccupiedColor, white)
+import Styles exposing (black, bookIconStyles, bookStyles, container, gray, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, settingsIconStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, speedControlStyles, textStyles, uiStyles, unOccupiedColor, white)
 import Time exposing (Posix)
 
 
@@ -178,7 +178,7 @@ init { initialWidth, images } =
 
 gameOfLifeRule : Rule
 gameOfLifeRule =
-    Rule [ 3 ] [ 2, 3 ]
+    Rule [ 3, 6 ] [ 2, 3 ]
 
 
 animator : Animator.Animator Model
@@ -325,9 +325,6 @@ view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generat
         gridContainerStyles =
             gridContainer ++ [ book ]
 
-        uiStyles =
-            [ E.centerX, E.centerY, E.spacingXY 0 10 ]
-
         content =
             E.column gridContainerStyles <|
                 [ E.column uiStyles
@@ -336,7 +333,10 @@ view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generat
                     , E.row gridLayout <|
                         [ E.el gridStyles <| drawGrid height width cellSize board mode ]
                     , E.row [ E.width E.fill ] <|
-                        [ displayGeneration generations, displayTimeTravelControls generations mode ]
+                        [ speedControl speed (Animator.current bookStatus)
+                        , displayGeneration generations
+                        , displayTimeTravelControls generations mode
+                        ]
                     ]
                 ]
     in
@@ -380,22 +380,13 @@ sidebar mode speed bookStatus =
     let
         toggleBookStatusButton =
             Input.button [] { onPress = Just ToggleBookStatus, label = bookIcon bookStatus }
+
+        toggleSettingsButton =
+            Input.button [] { onPress = Nothing, label = settingsIcon }
     in
     E.column sidebarStyles
-        [ E.row sidebarRowStyles <|
-            [ E.column sidebarColumnStyles
-                [ Input.button (sidebarButtonStyles bookStatus)
-                    { onPress = Just IncreaseSpeed
-                    , label = increaseSpeedIcon
-                    }
-                , E.el (textStyles ++ sidebarButtonStyles bookStatus) <| E.text <| speedToString speed
-                , Input.button (sidebarButtonStyles bookStatus)
-                    { onPress = Just DecreaseSpeed
-                    , label = decreaseSpeedIcon
-                    }
-                ]
-            ]
-        , E.row sidebarRowStyles <| [ toggleBookStatusButton ]
+        [ E.row bookIconStyles <| [ toggleBookStatusButton ]
+        , E.row settingsIconStyles <| [ toggleSettingsButton ]
         , E.row sidebarRowStyles <|
             [ E.column sidebarColumnStyles <|
                 [ Input.button (sidebarButtonStyles bookStatus)
@@ -408,6 +399,21 @@ sidebar mode speed bookStatus =
                     }
                 ]
             ]
+        ]
+
+
+speedControl : Speed -> BookStatus -> Element Msg
+speedControl speed bookStatus =
+    E.row speedControlStyles <|
+        [ Input.button (sidebarButtonStyles bookStatus)
+            { onPress = Just IncreaseSpeed
+            , label = increaseSpeedIcon
+            }
+        , E.el (textStyles ++ sidebarButtonStyles bookStatus) <| E.text <| speedToString speed
+        , Input.button (sidebarButtonStyles bookStatus)
+            { onPress = Just DecreaseSpeed
+            , label = decreaseSpeedIcon
+            }
         ]
 
 
@@ -567,20 +573,28 @@ getModeButtonIcon mode =
 
 displayGeneration : Int -> Element Msg
 displayGeneration generations =
+    let
+        styles =
+            textStyles ++ [ E.centerX, E.width <| E.fillPortion 2 ]
+    in
     if generations == 0 then
-        E.row textStyles <| [ E.text "" ]
+        E.row styles [ E.text "" ]
 
     else
-        E.row (textStyles ++ [ E.alignLeft ]) [ E.text <| "Generations: " ++ String.fromInt generations ]
+        E.row styles [ E.text <| "Generations: " ++ String.fromInt generations ]
 
 
 displayTimeTravelControls : Int -> Mode -> Element Msg
 displayTimeTravelControls generations mode =
+    let
+        styles =
+            [ E.width <| E.fillPortion 1, E.alignRight ]
+    in
     if generations == 0 || mode /= Pause then
-        E.row textStyles <| [ E.text "" ]
+        E.row styles <| [ E.text "" ]
 
     else
-        E.row [ E.alignRight ]
+        E.row styles
             [ Input.button [ E.htmlAttribute (Attr.title "Forward 1 step") ]
                 { onPress = Just (Tick <| Time.millisToPosix 1), label = travelForwardIcon }
             , Input.button [ E.htmlAttribute (Attr.title "Forward 5 steps") ]
