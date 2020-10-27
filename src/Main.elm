@@ -139,6 +139,7 @@ type alias Model =
     , bookStatus : Animator.Timeline BookStatus
     , generations : Int
     , images : List Image
+    , rule : Rule
     }
 
 
@@ -169,9 +170,15 @@ init { initialWidth, images } =
       , bookStatus = Animator.init Closed
       , generations = 0
       , images = images
+      , rule = gameOfLifeRule
       }
     , Cmd.none
     )
+
+
+gameOfLifeRule : Rule
+gameOfLifeRule =
+    Rule [ 3 ] [ 2, 3 ]
 
 
 animator : Animator.Animator Model
@@ -224,7 +231,7 @@ update msg model =
 
         Tick _ ->
             ( { model
-                | board = applyGameOfLifeRules model.board
+                | board = applyGameOfLifeRules model.rule model.board
                 , generations = model.generations + 1
               }
             , Cmd.none
@@ -299,7 +306,7 @@ update msg model =
             ( Animator.update newTime animator model, Cmd.none )
 
         ForwardFiveSteps ->
-            ( { model | generations = model.generations + 5, board = applyRulesFiveTimes model.board }, Cmd.none )
+            ( { model | generations = model.generations + 5, board = applyRulesFiveTimes model.rule model.board }, Cmd.none )
 
 
 
@@ -706,11 +713,11 @@ countLiveNeighbours board coord =
         board
 
 
-survivors : Board -> Board
-survivors board =
+survivors : Born -> Board -> Board
+survivors bornRules board =
     List.foldl
         (\x acc ->
-            if List.member (countLiveNeighbours board x) [ 2, 3 ] then
+            if List.member (countLiveNeighbours board x) bornRules then
                 x :: acc
 
             else
@@ -720,8 +727,8 @@ survivors board =
         board
 
 
-births : Board -> Board
-births board =
+births : Born -> Board -> Board
+births born board =
     List.foldl
         (\x result ->
             let
@@ -735,7 +742,7 @@ births board =
                             if
                                 (not <| List.member neighbour board)
                                     && (not <| List.member neighbour result)
-                                    && (countLiveNeighbours board neighbour == 3)
+                                    && List.member (countLiveNeighbours board neighbour) born
                             then
                                 neighbour :: acc
 
@@ -761,14 +768,18 @@ removeDuplicates board =
             x :: (removeDuplicates <| List.filter (\c -> c /= x) xs)
 
 
-applyGameOfLifeRules : Board -> Board
-applyGameOfLifeRules board =
-    survivors board ++ births board
+applyGameOfLifeRules : Rule -> Board -> Board
+applyGameOfLifeRules (Rule birthRules surviveRules) board =
+    births birthRules board ++ survivors surviveRules board
 
 
-applyRulesFiveTimes : Board -> Board
-applyRulesFiveTimes =
-    applyGameOfLifeRules >> applyGameOfLifeRules >> applyGameOfLifeRules >> applyGameOfLifeRules >> applyGameOfLifeRules
+applyRulesFiveTimes : Rule -> Board -> Board
+applyRulesFiveTimes rule =
+    applyGameOfLifeRules rule
+        >> applyGameOfLifeRules rule
+        >> applyGameOfLifeRules rule
+        >> applyGameOfLifeRules rule
+        >> applyGameOfLifeRules rule
 
 
 isNeighbour : Coordinates -> Coordinates -> Bool
