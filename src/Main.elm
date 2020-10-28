@@ -45,6 +45,11 @@ type BookStatus
     | Closed
 
 
+type SettingsStatus
+    = OpenSettings
+    | ClosedSettings
+
+
 type Rule
     = Rule Born Survive
 
@@ -140,6 +145,7 @@ type alias Model =
     , generations : Int
     , images : List Image
     , rule : Rule
+    , settingsStatus : SettingsStatus
     }
 
 
@@ -171,6 +177,7 @@ init { initialWidth, images } =
       , generations = 0
       , images = images
       , rule = gameOfLifeRule
+      , settingsStatus = ClosedSettings
       }
     , Cmd.none
     )
@@ -207,6 +214,7 @@ type Msg
     | Reset
     | AnimatorSubscriptionMsg Time.Posix
     | ForwardFiveSteps
+    | ToggleSettings
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -308,13 +316,20 @@ update msg model =
         ForwardFiveSteps ->
             ( { model | generations = model.generations + 5, board = applyRulesFiveTimes model.rule model.board }, Cmd.none )
 
+        ToggleSettings ->
+            let
+                newSettingsStatus =
+                    toggleSettingsStatus model.settingsStatus
+            in
+            ( { model | settingsStatus = newSettingsStatus }, Cmd.none )
+
 
 
 ---- VIEW ----
 
 
 view : Model -> Html Msg
-view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generations, images } =
+view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generations, images, settingsStatus } =
     let
         currentBookStatus =
             Animator.current bookStatus
@@ -322,8 +337,11 @@ view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generat
         book =
             E.inFront <| displayBook bookStatus images
 
+        settings =
+            E.inFront <| displaySettings settingsStatus
+
         gridContainerStyles =
-            gridContainer ++ [ book ]
+            gridContainer ++ [ book ] ++ [ settings ]
 
         content =
             E.column gridContainerStyles <|
@@ -382,18 +400,21 @@ sidebar mode speed bookStatus =
             Input.button [] { onPress = Just ToggleBookStatus, label = bookIcon bookStatus }
 
         toggleSettingsButton =
-            Input.button [] { onPress = Nothing, label = settingsIcon }
+            Input.button [] { onPress = Just ToggleSettings, label = settingsIcon }
+
+        playAndResetButtonStyles =
+            [ E.centerX ]
     in
     E.column sidebarStyles
         [ E.row bookIconStyles <| [ toggleBookStatusButton ]
         , E.row settingsIconStyles <| [ toggleSettingsButton ]
         , E.row sidebarRowStyles <|
             [ E.column sidebarColumnStyles <|
-                [ Input.button (sidebarButtonStyles bookStatus)
+                [ Input.button playAndResetButtonStyles
                     { onPress = Just <| Reset
                     , label = resetIcon
                     }
-                , Input.button (sidebarButtonStyles bookStatus)
+                , Input.button playAndResetButtonStyles
                     { onPress = Just <| ChangeMode mode
                     , label = getModeButtonIcon mode
                     }
@@ -405,26 +426,30 @@ sidebar mode speed bookStatus =
 speedControl : Speed -> BookStatus -> Element Msg
 speedControl speed bookStatus =
     E.row speedControlStyles <|
-        [ Input.button (sidebarButtonStyles bookStatus)
+        [ Input.button (speedControlButtonStyles bookStatus)
             { onPress = Just IncreaseSpeed
             , label = increaseSpeedIcon
             }
-        , E.el (textStyles ++ sidebarButtonStyles bookStatus) <| E.text <| speedToString speed
-        , Input.button (sidebarButtonStyles bookStatus)
+        , E.el (textStyles ++ speedControlButtonStyles bookStatus ++ [ E.paddingXY 10 0 ]) <| E.text <| speedToString speed
+        , Input.button (speedControlButtonStyles bookStatus)
             { onPress = Just DecreaseSpeed
             , label = decreaseSpeedIcon
             }
         ]
 
 
-sidebarButtonStyles : BookStatus -> List (Attribute Msg)
-sidebarButtonStyles bookStatus =
+speedControlButtonStyles : BookStatus -> List (Attribute Msg)
+speedControlButtonStyles bookStatus =
+    let
+        commonStyles =
+            [ E.alignLeft ]
+    in
     case bookStatus of
         Open ->
-            hiddenIcon
+            hiddenIcon ++ commonStyles
 
         Closed ->
-            sidebarIconStyles
+            sidebarIconStyles ++ commonStyles
 
 
 displayBook : Animator.Timeline BookStatus -> List Image -> Element Msg
@@ -595,11 +620,67 @@ displayTimeTravelControls generations mode =
 
     else
         E.row styles
-            [ Input.button [ E.htmlAttribute (Attr.title "Forward 1 step") ]
+            [ Input.button [ E.htmlAttribute (Attr.title "Forward 1 step"), E.alignRight ]
                 { onPress = Just (Tick <| Time.millisToPosix 1), label = travelForwardIcon }
-            , Input.button [ E.htmlAttribute (Attr.title "Forward 5 steps") ]
+            , Input.button [ E.htmlAttribute (Attr.title "Forward 5 steps"), E.alignRight ]
                 { onPress = Just ForwardFiveSteps, label = travelForwardFastIcon }
             ]
+
+
+displaySettings : SettingsStatus -> Element Msg
+displaySettings settingsStatus =
+    let
+        settingsElement =
+            case settingsStatus of
+                OpenSettings ->
+                    openSettings
+
+                ClosedSettings ->
+                    hiddenSettings
+
+        pointerEvents =
+            case settingsStatus of
+                ClosedSettings ->
+                    Attr.style "pointer-events" "none"
+
+                OpenSettings ->
+                    Attr.style "" ""
+    in
+    E.html <|
+        Html.div
+            [ Attr.style "position" "relative"
+            , Attr.style "width" "100%"
+            , Attr.style "height" "100%"
+            , Attr.style "overflow" "hidden"
+            , Attr.class "bookContainer"
+            , pointerEvents
+            ]
+            [ settingsElement ]
+
+
+openSettings : Html Msg
+openSettings =
+    Html.div
+        [ Attr.style "position" "absolute"
+        , Attr.style "left" "0px"
+        , Attr.style "top" "0px"
+        , Attr.style "right" "70%"
+        , Attr.style "bottom" "0px"
+        , Attr.style "flex-wrap" "wrap"
+        , Attr.style "align-items" "flex-start"
+        , Attr.style "justify-content" "space-between"
+        , Attr.style "background-color" "gray"
+        , Attr.style "white-space" "normal"
+        , Attr.class "openBook"
+        ]
+        [ E.layoutWith { options = [ E.noStaticStyleSheet ] } bookStyles <|
+            E.wrappedRow [ E.spacingXY 50 20, E.centerY ] [ E.column [] [ E.row [] [ E.text "Hello" ] ] ]
+        ]
+
+
+hiddenSettings : Html Msg
+hiddenSettings =
+    Html.div [] []
 
 
 
@@ -684,6 +765,16 @@ updateCell coords currentlyAlive =
 
     else
         coords :: currentlyAlive
+
+
+toggleSettingsStatus : SettingsStatus -> SettingsStatus
+toggleSettingsStatus s =
+    case s of
+        OpenSettings ->
+            ClosedSettings
+
+        ClosedSettings ->
+            OpenSettings
 
 
 
