@@ -25,6 +25,7 @@ import Patterns
         , patternToString
         , patterns
         )
+import Rules exposing (..)
 import Styles exposing (black, bookIconStyles, bookStyles, container, gray, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, settingsIconStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, speedControlStyles, textStyles, uiStyles, unOccupiedColor, white)
 import Time exposing (Posix)
 
@@ -48,18 +49,6 @@ type BookStatus
 type SettingsStatus
     = OpenSettings
     | ClosedSettings
-
-
-type Rule
-    = Rule Born Survive
-
-
-type alias Born =
-    List Int
-
-
-type alias Survive =
-    List Int
 
 
 type InitialPattern
@@ -176,16 +165,11 @@ init { initialWidth, images } =
       , bookStatus = Animator.init Closed
       , generations = 0
       , images = images
-      , rule = gameOfLifeRule
+      , rule = defaultRule
       , settingsStatus = ClosedSettings
       }
     , Cmd.none
     )
-
-
-gameOfLifeRule : Rule
-gameOfLifeRule =
-    Rule [ 3, 6 ] [ 2, 3 ]
 
 
 animator : Animator.Animator Model
@@ -674,13 +658,23 @@ openSettings =
         , Attr.class "openBook"
         ]
         [ E.layoutWith { options = [ E.noStaticStyleSheet ] } bookStyles <|
-            E.wrappedRow [ E.spacingXY 50 20, E.centerY ] [ E.column [] [ E.row [] [ E.text "Hello" ] ] ]
+            E.column [] <|
+                ruleList
         ]
 
 
 hiddenSettings : Html Msg
 hiddenSettings =
     Html.div [] []
+
+
+ruleList : List (Element Msg)
+ruleList =
+    List.map
+        (\( label, rule ) ->
+            E.row [] [ E.text <| rulesToString label ]
+        )
+        rulesList
 
 
 
