@@ -88,3 +88,11 @@ resetIcon =
         |> FeatherIcons.withClass "icon"
         |> FeatherIcons.toHtml iconStyles
         |> E.html
+
+
+settingsIcon : Element msg
+settingsIcon =
+    FeatherIcons.settings
+        |> FeatherIcons.withClass "icon"
+        |> FeatherIcons.toHtml iconStyles
+        |> E.html

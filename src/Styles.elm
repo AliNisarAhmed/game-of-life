@@ -1,7 +1,7 @@
 module Styles exposing (..)
 
 import Color as C
-import Element as E exposing (Attribute, Color)
+import Element as E exposing (Attr, Attribute, Color, explain)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -10,6 +10,9 @@ import Svg.Attributes as SA
 
 
 
+--
+-- explain =
+--     E.explain <| Debug.todo
 ---- COLORS ----
 
 
@@ -52,12 +55,6 @@ unOccupiedColor =
     C.rgb255 245 245 245
 
 
-
-----
--- explain =
---     E.explain <| Debug.todo
-
-
 container : List (Attribute msg)
 container =
     [ E.height E.fill
@@ -89,7 +86,7 @@ sidebarStyles =
 
 sidebarRowStyles : List (Attribute msg)
 sidebarRowStyles =
-    [ E.centerX ]
+    [ E.centerX, E.paddingXY 0 20 ]
 
 
 sidebarColumnStyles : List (Attribute msg)
@@ -102,6 +99,16 @@ sidebarIconStyles =
     [ E.centerX ]
 
 
+bookIconStyles : List (Attribute msg)
+bookIconStyles =
+    sidebarIconStyles ++ [ E.paddingXY 0 10 ]
+
+
+settingsIconStyles : List (Attribute msg)
+settingsIconStyles =
+    sidebarIconStyles ++ [ E.alignTop, E.paddingXY 0 10 ]
+
+
 gridContainer : List (Attribute msg)
 gridContainer =
     [ E.spacing 0
@@ -109,6 +116,19 @@ gridContainer =
     , E.centerY
     , E.width <| E.fill
     , E.height E.fill
+    ]
+
+
+uiStyles : List (Attribute msg)
+uiStyles =
+    [ E.centerX, E.centerY, E.spacingXY 0 10 ]
+
+
+speedControlStyles : List (Attribute msg)
+speedControlStyles =
+    [ E.alignLeft
+    , E.paddingEach { top = 0, bottom = 0, left = 0, right = 20 }
+    , E.width <| E.fillPortion 2
     ]
 
 
@@ -170,3 +190,48 @@ textStyles =
     , Font.color white
     , Font.size 16
     ]
+
+
+heading : List (Attribute msg)
+heading =
+    [ E.alignLeft
+    , Font.color white
+    , Font.size 24
+    ]
+
+
+subHeading : List (Attribute msg)
+subHeading =
+    [ E.alignLeft
+    , Font.color primaryColor
+    , Font.size 16
+    ]
+
+
+paragraph : List (Attribute msg)
+paragraph =
+    [ E.alignLeft
+    , Font.color primaryColor
+    , Font.size 14
+    ]
+
+
+settingsStyles : List (Attribute msg)
+settingsStyles =
+    [ E.spaceEvenly
+    , E.paddingXY 10 10
+    , Border.width 10
+    , E.width E.fill
+    , E.height E.fill
+    , Background.color <| E.rgb255 123 123 123
+    ]
+
+
+ruleRowStyles : List (Attribute msg)
+ruleRowStyles =
+    [ E.width E.fill, E.mouseOver [ Background.color <| E.rgba255 180 180 180 0.4 ] ]
+
+
+ruleElementStyles : List (Attribute msg)
+ruleElementStyles =
+    [ E.width E.fill ]

@@ -25,7 +25,8 @@ import Patterns
         , patternToString
         , patterns
         )
-import Styles exposing (black, bookStyles, container, gray, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, textStyles, unOccupiedColor, white)
+import Rules exposing (..)
+import Styles exposing (black, bookIconStyles, bookStyles, container, gray, gridContainer, gridLayout, gridStyles, heading, hiddenIcon, iconStyles, layout, occupiedColor, paragraph, patternDisplayStyles, primaryColor, ruleElementStyles, ruleRowStyles, settingsIconStyles, settingsStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, speedControlStyles, subHeading, textStyles, uiStyles, unOccupiedColor, white)
 import Time exposing (Posix)
 
 
@@ -45,16 +46,9 @@ type BookStatus
     | Closed
 
 
-type Rule
-    = Rule Born Survive
-
-
-type alias Born =
-    List Int
-
-
-type alias Survive =
-    List Int
+type SettingsStatus
+    = OpenSettings
+    | ClosedSettings
 
 
 type InitialPattern
@@ -139,6 +133,8 @@ type alias Model =
     , bookStatus : Animator.Timeline BookStatus
     , generations : Int
     , images : List Image
+    , rule : Rule
+    , settingsStatus : SettingsStatus
     }
 
 
@@ -169,6 +165,8 @@ init { initialWidth, images } =
       , bookStatus = Animator.init Closed
       , generations = 0
       , images = images
+      , rule = defaultRule
+      , settingsStatus = ClosedSettings
       }
     , Cmd.none
     )
@@ -200,6 +198,8 @@ type Msg
     | Reset
     | AnimatorSubscriptionMsg Time.Posix
     | ForwardFiveSteps
+    | ToggleSettings
+    | ChangeRule RuleLabels
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -224,7 +224,7 @@ update msg model =
 
         Tick _ ->
             ( { model
-                | board = applyGameOfLifeRules model.board
+                | board = applyGameOfLifeRules model.rule model.board
                 , generations = model.generations + 1
               }
             , Cmd.none
@@ -299,7 +299,21 @@ update msg model =
             ( Animator.update newTime animator model, Cmd.none )
 
         ForwardFiveSteps ->
-            ( { model | generations = model.generations + 5, board = applyRulesFiveTimes model.board }, Cmd.none )
+            ( { model | generations = model.generations + 5, board = applyRulesFiveTimes model.rule model.board }, Cmd.none )
+
+        ToggleSettings ->
+            let
+                newSettingsStatus =
+                    toggleSettingsStatus model.settingsStatus
+            in
+            ( { model | settingsStatus = newSettingsStatus }, Cmd.none )
+
+        ChangeRule label ->
+            let
+                newRule =
+                    Maybe.withDefault defaultRule <| getRule label
+            in
+            ( { model | rule = newRule, settingsStatus = ClosedSettings }, Cmd.none )
 
 
 
@@ -307,7 +321,7 @@ update msg model =
 
 
 view : Model -> Html Msg
-view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generations, images } =
+view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generations, images, settingsStatus } =
     let
         currentBookStatus =
             Animator.current bookStatus
@@ -315,11 +329,11 @@ view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generat
         book =
             E.inFront <| displayBook bookStatus images
 
-        gridContainerStyles =
-            gridContainer ++ [ book ]
+        settings =
+            E.inFront <| displaySettings settingsStatus
 
-        uiStyles =
-            [ E.centerX, E.centerY, E.spacingXY 0 10 ]
+        gridContainerStyles =
+            gridContainer ++ [ book ] ++ [ settings ]
 
         content =
             E.column gridContainerStyles <|
@@ -329,7 +343,10 @@ view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generat
                     , E.row gridLayout <|
                         [ E.el gridStyles <| drawGrid height width cellSize board mode ]
                     , E.row [ E.width E.fill ] <|
-                        [ displayGeneration generations, displayTimeTravelControls generations mode ]
+                        [ speedControl speed (Animator.current bookStatus)
+                        , displayGeneration generations
+                        , displayTimeTravelControls generations mode
+                        ]
                     ]
                 ]
     in
@@ -373,29 +390,23 @@ sidebar mode speed bookStatus =
     let
         toggleBookStatusButton =
             Input.button [] { onPress = Just ToggleBookStatus, label = bookIcon bookStatus }
+
+        toggleSettingsButton =
+            Input.button [] { onPress = Just ToggleSettings, label = settingsIcon }
+
+        playAndResetButtonStyles =
+            [ E.centerX ]
     in
     E.column sidebarStyles
-        [ E.row sidebarRowStyles <|
-            [ E.column sidebarColumnStyles
-                [ Input.button (sidebarButtonStyles bookStatus)
-                    { onPress = Just IncreaseSpeed
-                    , label = increaseSpeedIcon
-                    }
-                , E.el (textStyles ++ sidebarButtonStyles bookStatus) <| E.text <| speedToString speed
-                , Input.button (sidebarButtonStyles bookStatus)
-                    { onPress = Just DecreaseSpeed
-                    , label = decreaseSpeedIcon
-                    }
-                ]
-            ]
-        , E.row sidebarRowStyles <| [ toggleBookStatusButton ]
+        [ E.row bookIconStyles <| [ toggleBookStatusButton ]
+        , E.row settingsIconStyles <| [ toggleSettingsButton ]
         , E.row sidebarRowStyles <|
             [ E.column sidebarColumnStyles <|
-                [ Input.button (sidebarButtonStyles bookStatus)
+                [ Input.button playAndResetButtonStyles
                     { onPress = Just <| Reset
                     , label = resetIcon
                     }
-                , Input.button (sidebarButtonStyles bookStatus)
+                , Input.button playAndResetButtonStyles
                     { onPress = Just <| ChangeMode mode
                     , label = getModeButtonIcon mode
                     }
@@ -404,14 +415,33 @@ sidebar mode speed bookStatus =
         ]
 
 
-sidebarButtonStyles : BookStatus -> List (Attribute Msg)
-sidebarButtonStyles bookStatus =
+speedControl : Speed -> BookStatus -> Element Msg
+speedControl speed bookStatus =
+    E.row speedControlStyles <|
+        [ Input.button (speedControlButtonStyles bookStatus)
+            { onPress = Just IncreaseSpeed
+            , label = increaseSpeedIcon
+            }
+        , E.el (textStyles ++ speedControlButtonStyles bookStatus ++ [ E.paddingXY 10 0 ]) <| E.text <| speedToString speed
+        , Input.button (speedControlButtonStyles bookStatus)
+            { onPress = Just DecreaseSpeed
+            , label = decreaseSpeedIcon
+            }
+        ]
+
+
+speedControlButtonStyles : BookStatus -> List (Attribute Msg)
+speedControlButtonStyles bookStatus =
+    let
+        commonStyles =
+            [ E.alignLeft ]
+    in
     case bookStatus of
         Open ->
-            hiddenIcon
+            hiddenIcon ++ commonStyles
 
         Closed ->
-            sidebarIconStyles
+            sidebarIconStyles ++ commonStyles
 
 
 displayBook : Animator.Timeline BookStatus -> List Image -> Element Msg
@@ -560,25 +590,120 @@ getModeButtonIcon mode =
 
 displayGeneration : Int -> Element Msg
 displayGeneration generations =
+    let
+        styles =
+            textStyles ++ [ E.centerX, E.width <| E.fillPortion 2 ]
+    in
     if generations == 0 then
-        E.row textStyles <| [ E.text "" ]
+        E.row styles [ E.text "" ]
 
     else
-        E.row (textStyles ++ [ E.alignLeft ]) [ E.text <| "Generations: " ++ String.fromInt generations ]
+        E.row styles [ E.text <| "Generations: " ++ String.fromInt generations ]
 
 
 displayTimeTravelControls : Int -> Mode -> Element Msg
 displayTimeTravelControls generations mode =
+    let
+        styles =
+            [ E.width <| E.fillPortion 1, E.alignRight ]
+    in
     if generations == 0 || mode /= Pause then
-        E.row textStyles <| [ E.text "" ]
+        E.row styles <| [ E.text "" ]
 
     else
-        E.row [ E.alignRight ]
-            [ Input.button [ E.htmlAttribute (Attr.title "Forward 1 step") ]
+        E.row styles
+            [ Input.button [ E.htmlAttribute (Attr.title "Forward 1 step"), E.alignRight ]
                 { onPress = Just (Tick <| Time.millisToPosix 1), label = travelForwardIcon }
-            , Input.button [ E.htmlAttribute (Attr.title "Forward 5 steps") ]
+            , Input.button [ E.htmlAttribute (Attr.title "Forward 5 steps"), E.alignRight ]
                 { onPress = Just ForwardFiveSteps, label = travelForwardFastIcon }
             ]
+
+
+displaySettings : SettingsStatus -> Element Msg
+displaySettings settingsStatus =
+    let
+        settingsElement =
+            case settingsStatus of
+                OpenSettings ->
+                    openSettings
+
+                ClosedSettings ->
+                    hiddenSettings
+
+        pointerEvents =
+            case settingsStatus of
+                ClosedSettings ->
+                    Attr.style "pointer-events" "none"
+
+                OpenSettings ->
+                    Attr.style "" ""
+    in
+    E.html <|
+        Html.div
+            [ Attr.style "position" "relative"
+            , Attr.style "width" "100%"
+            , Attr.style "height" "100%"
+            , Attr.style "overflow" "hidden"
+            , Attr.class "bookContainer"
+            , pointerEvents
+            ]
+            [ settingsElement ]
+
+
+openSettings : Html Msg
+openSettings =
+    Html.div
+        [ Attr.style "position" "absolute"
+        , Attr.style "left" "0px"
+        , Attr.style "top" "0px"
+        , Attr.style "right" "70%"
+        , Attr.style "bottom" "0px"
+        , Attr.style "flex-wrap" "wrap"
+        , Attr.style "align-items" "flex-start"
+        , Attr.style "justify-content" "space-between"
+        , Attr.style "background-color" "gray"
+        , Attr.style "white-space" "normal"
+        , Attr.class "openBook"
+        ]
+        [ E.layoutWith { options = [ E.noStaticStyleSheet ] } settingsStyles <|
+            E.column [ E.width E.fill, E.spacingXY 0 20 ] <|
+                ruleList
+        ]
+
+
+hiddenSettings : Html Msg
+hiddenSettings =
+    Html.div [] []
+
+
+ruleList : List (Element Msg)
+ruleList =
+    List.map
+        (\( label, ( rule, ruleDescription ) ) ->
+            E.row ruleRowStyles <| [ ruleElement label rule ruleDescription ]
+        )
+        rulesList
+
+
+ruleElement : RuleLabels -> Rule -> Description -> Element Msg
+ruleElement label (Rule born survive) description =
+    Input.button ruleElementStyles
+        { onPress = Just (ChangeRule label)
+        , label =
+            E.column [ E.width E.fill, E.spacingXY 0 20 ]
+                [ E.el heading <| E.text <| rulesToString label
+                , E.el subHeading
+                    (E.text
+                        ("B"
+                            ++ (String.concat <| List.map (\b -> String.fromInt b) born)
+                            ++ "S"
+                            ++ (String.concat <| List.map (\s -> String.fromInt s) survive)
+                        )
+                    )
+                , E.el []
+                    (E.paragraph paragraph [ E.text description ])
+                ]
+        }
 
 
 
@@ -665,6 +790,16 @@ updateCell coords currentlyAlive =
         coords :: currentlyAlive
 
 
+toggleSettingsStatus : SettingsStatus -> SettingsStatus
+toggleSettingsStatus s =
+    case s of
+        OpenSettings ->
+            ClosedSettings
+
+        ClosedSettings ->
+            OpenSettings
+
+
 
 ---- Game of Life Algorithm ----
 
@@ -706,11 +841,11 @@ countLiveNeighbours board coord =
         board
 
 
-survivors : Board -> Board
-survivors board =
+survivors : Born -> Board -> Board
+survivors bornRules board =
     List.foldl
         (\x acc ->
-            if List.member (countLiveNeighbours board x) [ 2, 3 ] then
+            if List.member (countLiveNeighbours board x) bornRules then
                 x :: acc
 
             else
@@ -720,8 +855,8 @@ survivors board =
         board
 
 
-births : Board -> Board
-births board =
+births : Born -> Board -> Board
+births born board =
     List.foldl
         (\x result ->
             let
@@ -735,7 +870,7 @@ births board =
                             if
                                 (not <| List.member neighbour board)
                                     && (not <| List.member neighbour result)
-                                    && (countLiveNeighbours board neighbour == 3)
+                                    && List.member (countLiveNeighbours board neighbour) born
                             then
                                 neighbour :: acc
 
@@ -761,14 +896,18 @@ removeDuplicates board =
             x :: (removeDuplicates <| List.filter (\c -> c /= x) xs)
 
 
-applyGameOfLifeRules : Board -> Board
-applyGameOfLifeRules board =
-    survivors board ++ births board
+applyGameOfLifeRules : Rule -> Board -> Board
+applyGameOfLifeRules (Rule birthRules surviveRules) board =
+    births birthRules board ++ survivors surviveRules board
 
 
-applyRulesFiveTimes : Board -> Board
-applyRulesFiveTimes =
-    applyGameOfLifeRules >> applyGameOfLifeRules >> applyGameOfLifeRules >> applyGameOfLifeRules >> applyGameOfLifeRules
+applyRulesFiveTimes : Rule -> Board -> Board
+applyRulesFiveTimes rule =
+    applyGameOfLifeRules rule
+        >> applyGameOfLifeRules rule
+        >> applyGameOfLifeRules rule
+        >> applyGameOfLifeRules rule
+        >> applyGameOfLifeRules rule
 
 
 isNeighbour : Coordinates -> Coordinates -> Bool
