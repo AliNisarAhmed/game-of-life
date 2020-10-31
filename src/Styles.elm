@@ -1,7 +1,7 @@
 module Styles exposing (..)
 
 import Color as C
-import Element as E exposing (Attribute, Color, explain)
+import Element as E exposing (Attr, Attribute, Color, explain)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -195,3 +195,48 @@ textStyles =
     , Font.color white
     , Font.size 16
     ]
+
+
+heading : List (Attribute msg)
+heading =
+    [ E.alignLeft
+    , Font.color white
+    , Font.size 24
+    ]
+
+
+subHeading : List (Attribute msg)
+subHeading =
+    [ E.alignLeft
+    , Font.color primaryColor
+    , Font.size 16
+    ]
+
+
+paragraph : List (Attribute msg)
+paragraph =
+    [ E.alignLeft
+    , Font.color primaryColor
+    , Font.size 14
+    ]
+
+
+settingsStyles : List (Attribute msg)
+settingsStyles =
+    [ E.spaceEvenly
+    , E.paddingXY 10 10
+    , Border.width 10
+    , E.width E.fill
+    , E.height E.fill
+    , Background.color <| E.rgb255 123 123 123
+    ]
+
+
+ruleRowStyles : List (Attribute msg)
+ruleRowStyles =
+    [ E.width E.fill, E.mouseOver [ Background.color <| E.rgba255 180 180 180 0.4 ] ]
+
+
+ruleElementStyles : List (Attribute msg)
+ruleElementStyles =
+    [ E.width E.fill ]

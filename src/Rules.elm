@@ -1,10 +1,13 @@
 module Rules exposing
     ( Born
+    , Description
     , Rule(..)
+    , RuleLabels(..)
     , Survive
     , defaultRule
     , gameOfLifeRule
-    , halfLifeRule
+    , getRule
+    , highLifeRule
     , ruleNames
     , rulesDict
     , rulesList
@@ -28,7 +31,11 @@ type Rule
 
 type RuleLabels
     = GameOfLife
-    | HalfLife
+    | HighLife
+
+
+type alias Description =
+    String
 
 
 defaultRule : Rule
@@ -41,8 +48,8 @@ gameOfLifeRule =
     Rule [ 3 ] [ 2, 3 ]
 
 
-halfLifeRule : Rule
-halfLifeRule =
+highLifeRule : Rule
+highLifeRule =
     Rule [ 3, 6 ] [ 2, 3 ]
 
 
@@ -52,13 +59,18 @@ rulesToString rules =
         GameOfLife ->
             "Conway's Game of Life"
 
-        HalfLife ->
-            "HalfLife"
+        HighLife ->
+            "HighLife"
 
 
-rulesDict : Dict RuleLabels Rule
+rulesDict : Dict RuleLabels ( Rule, Description )
 rulesDict =
     Dict.fromList rulesToString rulesList
+
+
+getRule : RuleLabels -> Maybe Rule
+getRule label =
+    Maybe.map Tuple.first <| Dict.get rulesToString label rulesDict
 
 
 ruleNames : List RuleLabels
@@ -66,8 +78,30 @@ ruleNames =
     Dict.keys rulesDict
 
 
-rulesList : List ( RuleLabels, Rule )
+rulesList : List ( RuleLabels, ( Rule, Description ) )
 rulesList =
-    [ ( GameOfLife, gameOfLifeRule )
-    , ( HalfLife, halfLifeRule )
+    [ ( GameOfLife, ( gameOfLifeRule, gameOfLifeDescription ) )
+    , ( HighLife, ( highLifeRule, halfLifeDescription ) )
     ]
+
+
+gameOfLifeDescription : Description
+gameOfLifeDescription =
+    "The original game of life rules as formulated by Mr. John Conway. " ++ ruleDescription gameOfLifeRule
+
+
+halfLifeDescription : Description
+halfLifeDescription =
+    "HighLife is a cellular automator similar to Conway's Game of Life. It was devised in 1994 by Nathan Thompson. " ++ ruleDescription highLifeRule
+
+
+ruleDescription : Rule -> Description
+ruleDescription (Rule born survive) =
+    let
+        b =
+            String.concat <| List.map String.fromInt born
+
+        s =
+            String.concat <| List.map String.fromInt survive
+    in
+    "\"B" ++ b ++ "\" means that a cell is born if exactly 3 of its neighbours are alive. \"S" ++ s ++ "\" means that a cell survives to the next generation if exactly 2 or 3 of its neighbours are alive, else it dies"

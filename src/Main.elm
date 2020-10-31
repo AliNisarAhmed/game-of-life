@@ -26,7 +26,7 @@ import Patterns
         , patterns
         )
 import Rules exposing (..)
-import Styles exposing (black, bookIconStyles, bookStyles, container, gray, gridContainer, gridLayout, gridStyles, hiddenIcon, iconStyles, layout, occupiedColor, patternDisplayStyles, settingsIconStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, speedControlStyles, textStyles, uiStyles, unOccupiedColor, white)
+import Styles exposing (black, bookIconStyles, bookStyles, container, explain, gray, gridContainer, gridLayout, gridStyles, heading, hiddenIcon, iconStyles, layout, occupiedColor, paragraph, patternDisplayStyles, primaryColor, ruleElementStyles, ruleRowStyles, settingsIconStyles, settingsStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, speedControlStyles, subHeading, textStyles, uiStyles, unOccupiedColor, white)
 import Time exposing (Posix)
 
 
@@ -199,6 +199,7 @@ type Msg
     | AnimatorSubscriptionMsg Time.Posix
     | ForwardFiveSteps
     | ToggleSettings
+    | ChangeRule RuleLabels
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -306,6 +307,13 @@ update msg model =
                     toggleSettingsStatus model.settingsStatus
             in
             ( { model | settingsStatus = newSettingsStatus }, Cmd.none )
+
+        ChangeRule label ->
+            let
+                newRule =
+                    Maybe.withDefault defaultRule <| getRule label
+            in
+            ( { model | rule = newRule, settingsStatus = ClosedSettings }, Cmd.none )
 
 
 
@@ -657,8 +665,8 @@ openSettings =
         , Attr.style "white-space" "normal"
         , Attr.class "openBook"
         ]
-        [ E.layoutWith { options = [ E.noStaticStyleSheet ] } bookStyles <|
-            E.column [] <|
+        [ E.layoutWith { options = [ E.noStaticStyleSheet ] } settingsStyles <|
+            E.column [ E.width E.fill, E.spacingXY 0 20 ] <|
                 ruleList
         ]
 
@@ -671,10 +679,31 @@ hiddenSettings =
 ruleList : List (Element Msg)
 ruleList =
     List.map
-        (\( label, rule ) ->
-            E.row [] [ E.text <| rulesToString label ]
+        (\( label, ( rule, ruleDescription ) ) ->
+            E.row ruleRowStyles <| [ ruleElement label rule ruleDescription ]
         )
         rulesList
+
+
+ruleElement : RuleLabels -> Rule -> Description -> Element Msg
+ruleElement label (Rule born survive) description =
+    Input.button ruleElementStyles
+        { onPress = Just (ChangeRule label)
+        , label =
+            E.column [ E.width E.fill, E.spacingXY 0 20 ]
+                [ E.el heading <| E.text <| rulesToString label
+                , E.el subHeading
+                    (E.text
+                        ("B"
+                            ++ (String.concat <| List.map (\b -> String.fromInt b) born)
+                            ++ "S"
+                            ++ (String.concat <| List.map (\s -> String.fromInt s) survive)
+                        )
+                    )
+                , E.el []
+                    (E.paragraph paragraph [ E.text description ])
+                ]
+        }
 
 
 
