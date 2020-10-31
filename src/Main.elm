@@ -26,7 +26,7 @@ import Patterns
         , patterns
         )
 import Rules exposing (..)
-import Styles exposing (black, bookIconStyles, bookStyles, container, explain, gray, gridContainer, gridLayout, gridStyles, heading, hiddenIcon, iconStyles, layout, occupiedColor, paragraph, patternDisplayStyles, primaryColor, ruleElementStyles, ruleRowStyles, settingsIconStyles, settingsStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, speedControlStyles, subHeading, textStyles, uiStyles, unOccupiedColor, white)
+import Styles exposing (black, bookIconStyles, bookStyles, container, gray, gridContainer, gridLayout, gridStyles, heading, hiddenIcon, iconStyles, layout, occupiedColor, paragraph, patternDisplayStyles, primaryColor, ruleElementStyles, ruleRowStyles, settingsIconStyles, settingsStyles, sidebarColumnStyles, sidebarIconStyles, sidebarRowStyles, sidebarStyles, speedControlStyles, subHeading, textStyles, uiStyles, unOccupiedColor, white)
 import Time exposing (Posix)
 
 
