@@ -1,26 +1,12 @@
 {
-  "name": "game-of-life",
-  "version": "1.0.0",
-  "description": "This project is bootstrapped with [Create Elm App](https://github.com/halfzebra/create-elm-app).",
-  "main": "index.js",
-  "directories": {
-    "test": "tests"
-  },
   "scripts": {
-    "build": "elm-app build"
+    "start": "parcel index.html"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/AliNisarAhmed/game-of-life.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/AliNisarAhmed/game-of-life/issues"
-  },
-  "homepage": "https://github.com/AliNisarAhmed/game-of-life#readme",
   "devDependencies": {
-    "create-elm-app": "^4.2.26"
+    "elm-hot": "^1.0.1",
+    "node-elm-compiler": "^5.0.3"
+  },
+  "dependencies": {
+    "parcel-bundler": "^1.12.4"
   }
 }

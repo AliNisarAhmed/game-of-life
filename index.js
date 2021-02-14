@@ -1,6 +1,5 @@
 import './main.css';
-import { Elm } from './Main.elm';
-import * as serviceWorker from './serviceWorker';
+import { Elm } from './src/Main.elm';
 import oscillatorImage from './assets/oscillator.png';
 import acorn from './assets/acorn.png';
 import dieHard from './assets/diehard.png';
@@ -13,7 +12,7 @@ import toad from './assets/toad.png';
 const initialWidth = 90;
 
 Elm.Main.init({
-	node: document.getElementById('root'),
+	node: document.querySelector('main'),
 	flags: {
 		initialWidth,
 		images: [
@@ -28,8 +27,3 @@ Elm.Main.init({
 		],
 	},
 });
-
-// If you want your app to work offline and load faster, you can change
-// unregister() to register() below. Note this comes with some pitfalls.
-// Learn more about service workers: https://bit.ly/CRA-PWA
-serviceWorker.unregister();
