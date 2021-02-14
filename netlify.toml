@@ -1,6 +1,6 @@
 [build]
   publish = "dist/"
-  command = "npx parcel build index.html --public-url '.'"
+  command = "npm i -g elm@latest && npx parcel build index.html --public-url '.'"
 
 [build.environment]
   ELM_HOME = "$NETLIFY_BUILD_BASE/cache/elm"
