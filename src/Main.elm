@@ -6,7 +6,7 @@ import Browser
 import CellGrid as CG
 import CellGrid.Render as CGR
 import Color
-import Element as E exposing (Attribute, Element)
+import Element as E exposing (Attribute, Element, explain)
 import Element.Input as Input
 import Html exposing (Html, map)
 import Html.Attributes as Attr
@@ -321,7 +321,7 @@ update msg model =
 
 
 view : Model -> Html Msg
-view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generations, images, settingsStatus } =
+view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generations, images, settingsStatus, rule } =
     let
         currentBookStatus =
             Animator.current bookStatus
@@ -339,7 +339,9 @@ view { height, width, cellSize, mode, board, speed, bookStatus, pattern, generat
             E.column gridContainerStyles <|
                 [ E.column uiStyles
                     [ E.row patternDisplayStyles <|
-                        [ E.text <| ("Current Pattern: " ++ getPatternName pattern) ]
+                        [ E.el [ E.alignLeft ] <| E.text <| ("Current Pattern: " ++ getPatternName pattern)
+                        , E.el [ E.alignRight ] <| E.text <| ("Current Rule: " ++ getRuleInfo rule)
+                        ]
                     , E.row gridLayout <|
                         [ E.el gridStyles <| drawGrid height width cellSize board mode ]
                     , E.row [ E.width E.fill ] <|

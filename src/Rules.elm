@@ -7,6 +7,7 @@ module Rules exposing
     , defaultRule
     , gameOfLifeRule
     , getRule
+    , getRuleInfo
     , highLifeRule
     , ruleNames
     , rulesDict
@@ -105,3 +106,29 @@ ruleDescription (Rule born survive) =
             String.concat <| List.map String.fromInt survive
     in
     "\"B" ++ b ++ "\" means that a cell is born if exactly 3 of its neighbours are alive. \"S" ++ s ++ "\" means that a cell survives to the next generation if exactly 2 or 3 of its neighbours are alive, else it dies"
+
+
+getRuleInfo : Rule -> String
+getRuleInfo ((Rule born survive) as rule) =
+    let
+        bornString =
+            "B" ++ listOfNumbersToString born
+
+        surviveString =
+            "S" ++ listOfNumbersToString survive
+
+        ruleString =
+            bornString ++ surviveString
+    in
+    if rule == gameOfLifeRule then
+        "Conway " ++ ruleString
+
+    else
+        "HighLife " ++ ruleString
+
+
+listOfNumbersToString : List Int -> String
+listOfNumbersToString list =
+    list
+        |> List.map (\n -> String.fromInt n)
+        |> String.concat

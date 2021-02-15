@@ -178,6 +178,7 @@ patternDisplayStyles : List (Attribute msg)
 patternDisplayStyles =
     [ E.centerY
     , E.centerX
+    , E.width E.fill
     , E.alignLeft
     , Font.color white
     ]
